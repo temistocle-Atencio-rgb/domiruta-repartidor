@@ -1,0 +1,208 @@
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { Parada, Mensaje } from './types.ts';
+
+// ============================================================
+// CONSTANTES DE CONFIGURACIÓN DE SUPABASE
+// ============================================================
+export const SUPABASE_URL: string = "https://xivokswlegxetxgovhdw.supabase.co";
+export const SUPABASE_KEY: string = "sb_publishable_iMN9hA3fCwQKXOe6Pp5rIA__uoCp2_K";
+
+// Detectar si las constantes ya fueron configuradas por el usuario
+export const isSupabaseConfigured = (): boolean => {
+  const url = (SUPABASE_URL as string).trim();
+  const key = (SUPABASE_KEY as string).trim();
+  return (
+    url !== "PEGAR_AQUI_LA_URL_DEL_PROYECTO" &&
+    url !== "" &&
+    url.startsWith("http") &&
+    key !== "PEGAR_AQUI_LA_CLAVE_PUBLICA" &&
+    key !== ""
+  );
+};
+
+// Instancia del cliente Supabase cuando está configurado
+let supabaseInstance: SupabaseClient | null = null;
+
+export const getSupabaseClient = (): SupabaseClient | null => {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+  return supabaseInstance;
+};
+
+// -------------------------------------------------------------
+// Función RPC: ver_salida
+// -------------------------------------------------------------
+export async function verSalida(codigo: string): Promise<Parada[]> {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('La página no está configurada. Avísale a la tienda.');
+  }
+
+  const { data, error } = await client.rpc('ver_salida', { p_codigo: codigo });
+  if (error) {
+    console.error('Error en supabase.rpc ver_salida:', error);
+    throw error;
+  }
+  return (data as Parada[]) || [];
+}
+
+// -------------------------------------------------------------
+// Función RPC: marcar_entrega
+// -------------------------------------------------------------
+export async function marcarEntrega(
+  codigo: string,
+  id: string | number,
+  estado: 'en_camino' | 'entregado' | 'no_entregado',
+  motivo: string | null = null
+): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await client.rpc('marcar_entrega', {
+      p_codigo: codigo,
+      p_id: id,
+      p_estado: estado,
+      p_motivo: motivo,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc marcar_entrega:', error);
+      return false;
+    }
+
+    return data === true;
+  } catch (err) {
+    console.error('Fallo de red o llamada marcar_entrega:', err);
+    return false;
+  }
+}
+
+// -------------------------------------------------------------
+// Función RPC: ver_mensajes
+// -------------------------------------------------------------
+export async function verMensajes(codigo: string, desdeId: number): Promise<Mensaje[]> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await client.rpc('ver_mensajes', {
+      p_codigo: codigo,
+      p_desde: desdeId,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc ver_mensajes:', error);
+      return [];
+    }
+
+    return (data as Mensaje[]) || [];
+  } catch (err) {
+    console.error('Fallo al obtener mensajes:', err);
+    return [];
+  }
+}
+
+// -------------------------------------------------------------
+// Función RPC: enviar_mensaje
+// -------------------------------------------------------------
+export async function enviarMensaje(codigo: string, texto: string): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await client.rpc('enviar_mensaje', {
+      p_codigo: codigo,
+      p_texto: texto,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc enviar_mensaje:', error);
+      return false;
+    }
+
+    return data === true;
+  } catch (err) {
+    console.error('Fallo al enviar mensaje:', err);
+    return false;
+  }
+}
+
+// -------------------------------------------------------------
+// Función RPC: enviar_ubicacion
+// -------------------------------------------------------------
+export async function enviarUbicacion(codigo: string, lat: number, lon: number): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await client.rpc('enviar_ubicacion', {
+      p_codigo: codigo,
+      p_lat: lat,
+      p_lon: lon,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc enviar_ubicacion:', error);
+      return false;
+    }
+
+    return data === true;
+  } catch (err) {
+    console.error('Fallo al enviar ubicación:', err);
+    return false;
+  }
+}
+
+// -------------------------------------------------------------
+// Función RPC: subir_foto
+// -------------------------------------------------------------
+export async function subirFoto(
+  codigo: string,
+  id: string | number,
+  fotoDataUrl: string
+): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await client.rpc('subir_foto', {
+      p_codigo: codigo,
+      p_id: id,
+      p_foto: fotoDataUrl,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc subir_foto:', error);
+      return false;
+    }
+
+    return data === true;
+  } catch (err) {
+    console.error('Fallo al subir foto:', err);
+    return false;
+  }
+}
+
+// -------------------------------------------------------------
+// Formato oficial de pesos colombianos ($12.500, sin decimales)
+// -------------------------------------------------------------
+export function formatearPesos(valor: number): string {
+  if (typeof valor !== 'number' || isNaN(valor)) return '$0';
+  const formateado = Math.round(valor).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `$${formateado}`;
+}
