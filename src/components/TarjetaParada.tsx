@@ -2,18 +2,20 @@ import React, { useState, useRef } from 'react';
 import { Parada } from '../types.ts';
 import { formatearPesos, subirFoto } from '../supabase.ts';
 import { comprimirFoto } from '../utils/image.ts';
-import { Phone, Navigation, RotateCcw, Check, XCircle, Camera } from 'lucide-react';
+import { Phone, Navigation, RotateCcw, Check, XCircle, Camera, CheckCheck } from 'lucide-react';
 
 interface TarjetaParadaProps {
   parada: Parada;
   codigo: string;
   esNueva?: boolean;
   cargandoEstaParada: boolean;
+  fotoEnMemoria?: string;
   onMarcarEntregado: (parada: Parada) => void;
   onAbrirModalNoEntregado: (parada: Parada) => void;
   onDeshacer: (parada: Parada) => void;
-  onFotoSubidaExito: (paradaId: string | number) => void;
+  onFotoSubidaExito: (paradaId: string | number, dataUrl: string) => void;
   onMostrarError: (mensaje: string) => void;
+  onVerFotoGrande: (url: string, nombre: string) => void;
 }
 
 export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
@@ -21,11 +23,13 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
   codigo,
   esNueva = false,
   cargandoEstaParada,
+  fotoEnMemoria,
   onMarcarEntregado,
   onAbrirModalNoEntregado,
   onDeshacer,
   onFotoSubidaExito,
   onMostrarError,
+  onVerFotoGrande,
 }) => {
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,6 +46,14 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
     ? `https://www.google.com/maps/dir/?api=1&destination=${parada.lat},${parada.lon}`
     : null;
 
+  // Requisito 1: Línea de venta y productos
+  const tieneVenta = Boolean(parada.venta && parada.venta.trim().length > 0);
+  const textoVenta = tieneVenta
+    ? parada.productos && parada.productos > 0
+      ? `Venta N.º ${parada.venta} · ${parada.productos} ${parada.productos === 1 ? 'producto' : 'productos'}`
+      : `Venta N.º ${parada.venta}`
+    : null;
+
   // Manejar captura y compresión de foto de entrega
   const handleSeleccionarFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -52,7 +64,7 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
       const dataUrl = await comprimirFoto(file);
       const exito = await subirFoto(codigo, parada.id, dataUrl);
       if (exito) {
-        onFotoSubidaExito(parada.id);
+        onFotoSubidaExito(parada.id, dataUrl);
       } else {
         onMostrarError('No se pudo subir la foto. Revisa el internet');
       }
@@ -73,7 +85,7 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
 
   return (
     <article
-      className={`bg-white rounded-[5px] p-4 transition-all ${
+      className={`bg-white rounded-[5px] p-4 transition-all duration-200 ${
         esNueva
           ? 'border-2 border-[#005198] shadow-[0_0_0_3px_rgba(0,81,152,0.18)]'
           : 'border border-[#E3E7EC] shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
@@ -95,6 +107,14 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
           <p className="font-inter text-[14px] text-[#1F2933] mt-0.5 mb-0 break-words font-medium">
             {parada.direccion}
           </p>
+
+          {/* Requisito 1: Número de venta y productos debajo de la dirección */}
+          {textoVenta && (
+            <p className="font-inter text-[13px] text-[#5B6670] mt-0.5 mb-0">
+              {textoVenta}
+            </p>
+          )}
+
           {parada.referencia && (
             <p className="font-inter text-[13px] text-[#5B6670] mt-0.5 mb-0 italic break-words">
               Ref: {parada.referencia}
@@ -167,8 +187,8 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
       {/* Estados y Acciones de la entrega */}
       <div className="mt-4 pt-3 border-t border-[#E3E7EC]">
         {parada.estado === 'entregado' ? (
-          /* Tarjeta ya marcada como Entregado: Texto verde sin fondo de píldora + Foto opcional + Enlace Deshacer */
-          <div className="space-y-2">
+          /* Tarjeta ya marcada como Entregado */
+          <div className="space-y-3">
             <div className="flex items-center justify-between min-h-[44px]">
               <div className="flex items-center gap-2">
                 <Check className="w-5 h-5 text-[#1E7A44]" strokeWidth={2.5} />
@@ -187,17 +207,63 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
               </button>
             </div>
 
-            {/* Requisito 6: Foto de entrega */}
-            <div className="flex items-center justify-start pt-1 border-t border-[#E3E7EC]/60">
-              {parada.tiene_foto ? (
-                <span className="font-inter text-[13.5px] font-medium text-[#1E7A44] flex items-center gap-1.5 py-1">
-                  <Check className="w-4 h-4 text-[#1E7A44]" strokeWidth={2.5} />
-                  Foto enviada
-                </span>
+            {/* Requisito 3: Foto de entrega con miniatura 56x56 px */}
+            <div className="pt-2 border-t border-[#E3E7EC]/60">
+              {subiendoFoto ? (
+                <div className="space-y-1.5 py-1">
+                  <div className="flex items-center gap-2 font-inter text-xs text-[#003A73] font-medium">
+                    <span className="w-3.5 h-3.5 border-2 border-[#003A73] border-t-transparent rounded-full animate-spin" />
+                    <span>Enviando foto…</span>
+                  </div>
+                  <div className="w-full h-1 bg-[#E3E7EC] rounded-full overflow-hidden">
+                    <div className="h-full bg-[#005198] w-2/3 animate-pulse" />
+                  </div>
+                </div>
+              ) : parada.tiene_foto ? (
+                <div className="flex items-center gap-3">
+                  {/* Miniatura 56x56 px */}
+                  {fotoEnMemoria ? (
+                    <button
+                      type="button"
+                      onClick={() => onVerFotoGrande(fotoEnMemoria, parada.nombre)}
+                      className="w-14 h-14 rounded-[5px] overflow-hidden border border-[#E3E7EC] relative flex-shrink-0 cursor-pointer hover:opacity-90 active:opacity-75 transition-opacity"
+                      aria-label="Ver foto en tamaño completo"
+                    >
+                      <img
+                        src={fotoEnMemoria}
+                        alt="Miniatura entrega"
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ) : (
+                    <div className="w-14 h-14 rounded-[5px] bg-[#F2F4F7] border border-[#E3E7EC] flex items-center justify-center flex-shrink-0">
+                      <Camera className="w-6 h-6 text-[#5B6670]" strokeWidth={1.75} />
+                    </div>
+                  )}
+
+                  <div className="flex flex-col">
+                    <span className="font-inter text-[13.5px] font-medium text-[#1E7A44] flex items-center gap-1.5">
+                      <Check className="w-4 h-4 text-[#1E7A44]" strokeWidth={2.5} />
+                      Foto enviada
+                    </span>
+                    <label className="text-[#005198] hover:text-[#003A73] hover:underline font-inter text-[12.5px] font-medium cursor-pointer mt-0.5 inline-block">
+                      Cambiar foto
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleSeleccionarFoto}
+                        disabled={subiendoFoto}
+                        className="sr-only"
+                      />
+                    </label>
+                  </div>
+                </div>
               ) : (
                 <label className="text-[#005198] hover:text-[#003A73] hover:underline font-inter text-[13.5px] font-medium inline-flex items-center gap-1.5 py-1.5 cursor-pointer">
                   <Camera className="w-4 h-4 flex-shrink-0" strokeWidth={2} />
-                  <span>{subiendoFoto ? 'Subiendo foto...' : 'Agregar foto'}</span>
+                  <span>Agregar foto</span>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -212,7 +278,7 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
             </div>
           </div>
         ) : parada.estado === 'no_entregado' ? (
-          /* Tarjeta ya marcada como No entregado: Texto rojo sin fondo de píldora + enlace Deshacer */
+          /* Tarjeta ya marcada como No entregado */
           <div className="flex items-center justify-between min-h-[44px]">
             <div className="flex items-center gap-1.5 min-w-0 pr-2">
               <XCircle className="w-5 h-5 text-[#B03030] flex-shrink-0" strokeWidth={2} />
@@ -231,7 +297,7 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
             </button>
           </div>
         ) : (
-          /* Parada en camino: Botón principal naranja a todo el ancho y botón secundario */
+          /* Parada en camino */
           <div className="space-y-2.5">
             {/* Botón principal naranja a todo el ancho: "Entregado" con texto en #1F2933 */}
             <button

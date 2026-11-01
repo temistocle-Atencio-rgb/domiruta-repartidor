@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Parada, Mensaje } from './types.ts';
+import { Parada, Mensaje, InfoSalida } from './types.ts';
 
 // ============================================================
 // CONSTANTES DE CONFIGURACIÓN DE SUPABASE
@@ -32,6 +32,66 @@ export const getSupabaseClient = (): SupabaseClient | null => {
   }
   return supabaseInstance;
 };
+
+// -------------------------------------------------------------
+// Función RPC: info_salida
+// -------------------------------------------------------------
+export async function infoSalida(codigo: string): Promise<InfoSalida | null> {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('La página no está configurada. Avísale a la tienda.');
+  }
+
+  try {
+    const { data, error } = await client.rpc('info_salida', { p_codigo: codigo });
+    if (error) {
+      console.error('Error en supabase.rpc info_salida:', error);
+      throw error;
+    }
+    if (Array.isArray(data) && data.length > 0) {
+      return data[0] as InfoSalida;
+    }
+    if (data && !Array.isArray(data)) {
+      return data as InfoSalida;
+    }
+    return null;
+  } catch (err) {
+    console.error('Fallo llamando a Supabase RPC info_salida:', err);
+    throw err;
+  }
+}
+
+// -------------------------------------------------------------
+// Función RPC: responder_salida
+// -------------------------------------------------------------
+export async function responderSalida(
+  codigo: string,
+  acepta: boolean,
+  motivo: string = ''
+): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await client.rpc('responder_salida', {
+      p_codigo: codigo,
+      p_acepta: acepta,
+      p_motivo: motivo,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc responder_salida:', error);
+      return false;
+    }
+
+    return data === true;
+  } catch (err) {
+    console.error('Fallo llamando a Supabase RPC responder_salida:', err);
+    return false;
+  }
+}
 
 // -------------------------------------------------------------
 // Función RPC: ver_salida

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Parada, Mensaje } from './types.ts';
+import { Parada, Mensaje, InfoSalida, ResumenSalidaGuardado } from './types.ts';
 import {
+  infoSalida,
+  responderSalida,
   verSalida,
   marcarEntrega,
   verMensajes,
@@ -11,11 +13,14 @@ import {
 } from './supabase.ts';
 import { Header } from './components/Header.tsx';
 import { TarjetaParada } from './components/TarjetaParada.tsx';
+import { SeccionHechas } from './components/SeccionHechas.tsx';
 import { ModalMotivo } from './components/ModalMotivo.tsx';
 import { ResumenFijo } from './components/ResumenFijo.tsx';
 import { AvisoError } from './components/AvisoError.tsx';
 import { HojaMensajes } from './components/HojaMensajes.tsx';
-import { AlertTriangle, RefreshCw, MessageSquare, MapPin, X } from 'lucide-react';
+import { PantallaAceptarSalida } from './components/PantallaAceptarSalida.tsx';
+import { VisorFoto } from './components/VisorFoto.tsx';
+import { AlertTriangle, RefreshCw, MapPin } from 'lucide-react';
 
 function vibrarCelular(ms = 200) {
   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
@@ -46,13 +51,18 @@ function safeSetStorage(key: string, value: string): void {
 }
 
 export default function App() {
-  // 1. Obtener código de la salida del parámetro ?s=
+  // Obtener código de la salida del parámetro ?s=
   const [codigo] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     const params = new URLSearchParams(window.location.search);
     const paramS = params.get('s');
     return paramS && paramS.trim().length > 0 ? paramS.trim() : null;
   });
+
+  // Requisito 0: Información de la salida
+  const [info, setInfo] = useState<InfoSalida | null>(null);
+  const [cargandoInfo, setCargandoInfo] = useState<boolean>(true);
+  const [cargandoRespuestaSalida, setCargandoRespuestaSalida] = useState<boolean>(false);
 
   const [paradas, setParadas] = useState<Parada[]>([]);
   const paradasRef = useRef<Parada[]>([]);
@@ -62,6 +72,24 @@ export default function App() {
   const [recargandoSegundoPlano, setRecargandoSegundoPlano] = useState<boolean>(false);
   const [salidaCerradaOVacia, setSalidaCerradaOVacia] = useState<boolean>(false);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
+
+  // Requisito 5: Resumen guardado en localStorage para cuando la tienda cierre la salida
+  const [resumenGuardado, setResumenGuardado] = useState<ResumenSalidaGuardado | null>(() => {
+    if (!codigo) return null;
+    const raw = safeGetStorage(`domiruta_salida_${codigo}`);
+    if (raw) {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  // Requisito 3: Fotos en memoria y visor a pantalla completa
+  const [fotosEnMemoria, setFotosEnMemoria] = useState<Record<string | number, string>>({});
+  const [fotoVisor, setFotoVisor] = useState<{ url: string; nombre: string } | null>(null);
 
   // Estados de interacción por parada
   const [paradaCargandoId, setParadaCargandoId] = useState<string | number | null>(null);
@@ -75,14 +103,14 @@ export default function App() {
   const [paradasNuevasIds, setParadasNuevasIds] = useState<(string | number)[]>([]);
   const [avisoParadaNueva, setAvisoParadaNueva] = useState<string | null>(null);
 
-  // Requisito 2: Mensajes con la tienda
+  // Requisito 2 y 4: Mensajes con la tienda (estilo WhatsApp)
   const [hojaMensajesAbierta, setHojaMensajesAbierta] = useState<boolean>(false);
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [mensajesNuevosNoLeidos, setMensajesNuevosNoLeidos] = useState<number>(0);
   const [avisoMensajeTienda, setAvisoMensajeTienda] = useState<string | null>(null);
   const ultimoIdMensajeRef = useRef<number>(0);
 
-  // Requisito 4: Compartir ubicación
+  // Requisito 4: Compartir ubicación (solo después de aceptar la salida)
   const [mostrarAvisoUbicacion, setMostrarAvisoUbicacion] = useState<boolean>(() => {
     return safeGetStorage('domiruta_permiso_ubicacion_decidido') !== 'true';
   });
@@ -92,6 +120,29 @@ export default function App() {
   const ultimaPosicionRef = useRef<{ lat: number; lon: number } | null>(null);
   const primeraLecturaEnviadaRef = useRef<boolean>(false);
   const watchIdRef = useRef<number | null>(null);
+
+  // --------------------------------------------------------------------------
+  // Carga de info_salida (Requisito 0)
+  // --------------------------------------------------------------------------
+  const cargarInfoSalida = useCallback(async () => {
+    if (!isSupabaseConfigured() || !codigo) {
+      setCargandoInfo(false);
+      return;
+    }
+
+    try {
+      const dataInfo = await infoSalida(codigo);
+      setInfo(dataInfo);
+    } catch (err) {
+      console.error('Error al consultar info_salida:', err);
+    } finally {
+      setCargandoInfo(false);
+    }
+  }, [codigo]);
+
+  useEffect(() => {
+    cargarInfoSalida();
+  }, [cargarInfoSalida]);
 
   // --------------------------------------------------------------------------
   // Carga de paradas (ver_salida)
@@ -114,6 +165,23 @@ export default function App() {
       try {
         const resultado = await verSalida(codigo);
         const ordenadas = [...resultado].sort((a, b) => a.orden - b.orden);
+
+        // Requisito 5: Guardar en localStorage cada vez que cargue bien
+        if (ordenadas.length > 0) {
+          const entregadasCount = ordenadas.filter((p) => p.estado === 'entregado').length;
+          const noEntregadasCount = ordenadas.filter((p) => p.estado === 'no_entregado').length;
+          const plataTotal = ordenadas
+            .filter((p) => p.estado === 'entregado')
+            .reduce((sum, p) => sum + (p.cobrar || 0), 0);
+
+          const nuevoResumen: ResumenSalidaGuardado = {
+            entregadas: entregadasCount,
+            noEntregadas: noEntregadasCount,
+            plataCobrada: plataTotal,
+          };
+          setResumenGuardado(nuevoResumen);
+          safeSetStorage(`domiruta_salida_${codigo}`, JSON.stringify(nuevoResumen));
+        }
 
         // Requisito 5: Detectar si en una recarga aparece una parada que antes no estaba
         const anteriores = paradasRef.current;
@@ -170,11 +238,13 @@ export default function App() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         cargarParadas(false);
+        cargarInfoSalida();
       }
     };
 
     const handleFocus = () => {
       cargarParadas(false);
+      cargarInfoSalida();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -185,31 +255,43 @@ export default function App() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [codigo, cargarParadas]);
+  }, [codigo, cargarParadas, cargarInfoSalida]);
 
   // --------------------------------------------------------------------------
-  // Requisito 2: Polling de mensajes cada 10 segundos
+  // Requisito 4: Chat y polling de mensajes
+  // Cada 10 segundos pide toda la conversación (p_desde = 0) si el chat está abierto
+  // para actualizar los chulos de leído. Cerrado pide solo nuevos.
   // --------------------------------------------------------------------------
   const consultarMensajes = useCallback(async () => {
     if (!codigo || !isSupabaseConfigured()) return;
 
     try {
-      const nuevos = await verMensajes(codigo, ultimoIdMensajeRef.current);
+      const pDesde = hojaMensajesAbierta ? 0 : ultimoIdMensajeRef.current;
+      const nuevos = await verMensajes(codigo, pDesde);
+
       if (nuevos && nuevos.length > 0) {
         setMensajes((prev) => {
+          if (hojaMensajesAbierta) {
+            // Cuando el chat está abierto, actualizamos la lista completa con los nuevos estados leídos
+            const maxId = Math.max(...nuevos.map((m) => m.id), 0);
+            if (maxId > ultimoIdMensajeRef.current) {
+              ultimoIdMensajeRef.current = maxId;
+            }
+            return nuevos;
+          }
+
           const existentesIds = new Set(prev.map((m) => m.id));
           const soloNuevos = nuevos.filter((m) => !existentesIds.has(m.id));
           if (soloNuevos.length === 0) return prev;
 
-          // Actualizar el ID más alto
           const maxId = Math.max(...soloNuevos.map((m) => m.id));
           if (maxId > ultimoIdMensajeRef.current) {
             ultimoIdMensajeRef.current = maxId;
           }
 
-          // Si hay mensajes de la tienda y la hoja está cerrada, alertar al repartidor
+          // Si hay mensajes de la tienda y la hoja está cerrada, alertar
           const deTienda = soloNuevos.filter((m) => m.de === 'tienda');
-          if (deTienda.length > 0 && !hojaMensajesAbierta) {
+          if (deTienda.length > 0) {
             const ultimoDeTienda = deTienda[deTienda.length - 1];
             setAvisoMensajeTienda(`Tienda: ${ultimoDeTienda.texto}`);
             vibrarCelular(200);
@@ -237,7 +319,6 @@ export default function App() {
     return () => clearInterval(intervaloMensajes);
   }, [codigo, consultarMensajes]);
 
-  // Limpiar indicador de mensajes no leídos al abrir la hoja
   const handleAbrirMensajes = () => {
     setHojaMensajesAbierta(true);
     setMensajesNuevosNoLeidos(0);
@@ -248,7 +329,6 @@ export default function App() {
     if (!codigo) return false;
     const exito = await enviarMensaje(codigo, texto);
     if (exito) {
-      // Consultar de inmediato para ver el mensaje nuevo en pantalla
       consultarMensajes();
       return true;
     }
@@ -256,17 +336,54 @@ export default function App() {
   };
 
   // --------------------------------------------------------------------------
-  // Requisito 4: Compartir ubicación con navigator.geolocation.watchPosition
+  // Requisito 0: Aceptar o rechazar salida
   // --------------------------------------------------------------------------
+  const handleAceptarSalida = async () => {
+    if (!codigo || cargandoRespuestaSalida) return;
+    setCargandoRespuestaSalida(true);
+    setMensajeErrorAccion(null);
+
+    const exito = await responderSalida(codigo, true, '');
+    if (exito) {
+      setInfo((prev) => (prev ? { ...prev, aceptada: true, rechazada: false } : null));
+      cargarParadas(false);
+    } else {
+      setMensajeErrorAccion('No se pudo aceptar la salida. Revisa el internet.');
+    }
+    setCargandoRespuestaSalida(false);
+  };
+
+  const handleRechazarSalida = async (motivo: string) => {
+    if (!codigo || cargandoRespuestaSalida) return;
+    setCargandoRespuestaSalida(true);
+    setMensajeErrorAccion(null);
+
+    const exito = await responderSalida(codigo, false, motivo);
+    if (exito) {
+      setInfo((prev) => (prev ? { ...prev, aceptada: false, rechazada: true } : null));
+    } else {
+      setMensajeErrorAccion('No se pudo enviar el rechazo. Revisa el internet.');
+    }
+    setCargandoRespuestaSalida(false);
+  };
+
+  // --------------------------------------------------------------------------
+  // Requisito 4: Compartir ubicación (solo después de aceptar la salida)
+  // --------------------------------------------------------------------------
+  const salidaAceptada = Boolean(info?.aceptada);
+
   const paradasEnCamino = useMemo(
     () => paradas.filter((p) => p.estado === 'en_camino'),
     [paradas]
   );
+  const paradasHechas = useMemo(
+    () => paradas.filter((p) => p.estado !== 'en_camino'),
+    [paradas]
+  );
   const quedanEnCamino = paradasEnCamino.length > 0;
 
-  // Activar geolocalización cuando está encendida y quedan paradas en camino
   useEffect(() => {
-    if (!ubicacionActiva || !quedanEnCamino || !codigo) {
+    if (!salidaAceptada || !ubicacionActiva || !quedanEnCamino || !codigo) {
       if (watchIdRef.current !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
@@ -288,7 +405,7 @@ export default function App() {
         };
         ultimaPosicionRef.current = nuevaPos;
 
-        // Enviar la posición apenas llegue la primera lectura de watchPosition
+        // Enviar apenas llegue la primera lectura
         if (!primeraLecturaEnviadaRef.current && codigo) {
           primeraLecturaEnviadaRef.current = true;
           enviarUbicacion(codigo, nuevaPos.lat, nuevaPos.lon);
@@ -296,7 +413,6 @@ export default function App() {
       },
       (err) => {
         console.warn('Geolocalización rechazada o no disponible:', err);
-        // Si el permiso se niega, no insistir y apagar
         setUbicacionActiva(false);
         safeSetStorage('domiruta_ubicacion_activa', 'false');
       },
@@ -313,11 +429,11 @@ export default function App() {
         watchIdRef.current = null;
       }
     };
-  }, [ubicacionActiva, quedanEnCamino, codigo]);
+  }, [salidaAceptada, ubicacionActiva, quedanEnCamino, codigo]);
 
-  // Enviar ubicación cada 30 segundos si está activa
+  // Enviar ubicación cada 30 segundos
   useEffect(() => {
-    if (!ubicacionActiva || !quedanEnCamino || !codigo) return;
+    if (!salidaAceptada || !ubicacionActiva || !quedanEnCamino || !codigo) return;
 
     const intervaloUbicacion = setInterval(() => {
       if (ultimaPosicionRef.current) {
@@ -330,7 +446,7 @@ export default function App() {
     }, 30000);
 
     return () => clearInterval(intervaloUbicacion);
-  }, [ubicacionActiva, quedanEnCamino, codigo]);
+  }, [salidaAceptada, ubicacionActiva, quedanEnCamino, codigo]);
 
   const handleAceptarUbicacion = () => {
     setMostrarAvisoUbicacion(false);
@@ -411,7 +527,8 @@ export default function App() {
     setGuardandoMotivo(false);
   };
 
-  const handleFotoSubidaExito = (paradaId: string | number) => {
+  const handleFotoSubidaExito = (paradaId: string | number, dataUrl: string) => {
+    setFotosEnMemoria((prev) => ({ ...prev, [paradaId]: dataUrl }));
     setParadas((prev) =>
       prev.map((p) => (p.id === paradaId ? { ...p, tiene_foto: true } : p))
     );
@@ -429,8 +546,24 @@ export default function App() {
       .reduce((acumulado, p) => acumulado + (p.cobrar || 0), 0);
   }, [paradas]);
 
-  // Requisito 3: "Regresando" automático
+  // Requisito 3: "Regresando" automático cuando no queda ninguna parada en camino
   const todasTerminadas = totalParadas > 0 && paradasEnCamino.length === 0;
+
+  // Formato para hora de creación de la salida en el chat
+  const horaSalidaChatTexto = useMemo(() => {
+    if (!info?.creada) return 'Salida activa';
+    try {
+      const fecha = new Date(info.creada);
+      const horaStr = new Intl.DateTimeFormat('es-CO', {
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true,
+      }).format(fecha);
+      return `Salida de las ${horaStr}`;
+    } catch {
+      return 'Salida activa';
+    }
+  }, [info?.creada]);
 
   // ========================================================
   // CASO 0: Supabase no está configurado
@@ -463,16 +596,55 @@ export default function App() {
   }
 
   // ========================================================
-  // CASO 2: La salida viene vacía
+  // CASO 2: La salida viene vacía o info_salida vacía
+  // Requisito 5: Si ver_salida llega vacía y hay resumen guardado en localStorage
   // ========================================================
-  if (!cargandoInicial && salidaCerradaOVacia) {
+  if (!cargandoInicial && !cargandoInfo && (salidaCerradaOVacia || !info)) {
+    if (resumenGuardado) {
+      return (
+        <div className="min-h-screen bg-[#F2F4F7] flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-white rounded-[5px] border border-[#E3E7EC] shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-6 text-center space-y-4">
+            <div className="flex justify-center">
+              <svg
+                className="w-12 h-14"
+                viewBox="0 0 259.8 300"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <polygon fill="#F28C1B" points="0,75 129.9,0 259.8,75 129.9,150" />
+                <polygon fill="#005198" points="0,75 129.9,150 129.9,300 0,225" />
+                <polygon fill="#003A73" points="129.9,150 259.8,75 259.8,225 129.9,300" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="font-poppins font-bold text-[20px] text-[#003A73] mb-1 leading-tight">
+                Salida cerrada
+              </h1>
+              <p className="font-inter text-[15px] text-[#1F2933] leading-snug m-0">
+                La tienda ya cerró esta salida. ¡Gracias!
+              </p>
+            </div>
+            <div className="pt-3 border-t border-[#E3E7EC] font-inter text-[14px] text-[#5B6670] leading-relaxed">
+              Entregadas: <strong className="text-[#1F2933]">{resumenGuardado.entregadas}</strong> ·{' '}
+              No entregadas: <strong className="text-[#1F2933]">{resumenGuardado.noEntregadas}</strong> ·{' '}
+              Cobraste: <strong className="text-[#003A73]">{formatearPesos(resumenGuardado.plataCobrada)}</strong>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-[#F2F4F7] flex flex-col">
         <Header
           entregadas={0}
           total={0}
           cargando={recargandoSegundoPlano}
-          onRecargar={() => cargarParadas(false)}
+          onRecargar={() => {
+            cargarParadas(false);
+            cargarInfoSalida();
+          }}
           codigo={codigo}
           mensajesNuevos={mensajesNuevosNoLeidos}
           onAbrirMensajes={handleAbrirMensajes}
@@ -492,7 +664,10 @@ export default function App() {
             </p>
             <button
               type="button"
-              onClick={() => cargarParadas(true)}
+              onClick={() => {
+                cargarParadas(true);
+                cargarInfoSalida();
+              }}
               className="w-full h-[48px] bg-[#005198] hover:bg-[#003A73] text-white rounded-[5px] font-poppins font-semibold text-[14px] flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
               <RefreshCw className="w-4 h-4" strokeWidth={2} />
@@ -505,7 +680,64 @@ export default function App() {
   }
 
   // ========================================================
-  // CASO 3: Pantalla principal de paradas
+  // REQUISITO 0: Si rechazada es true
+  // ========================================================
+  if (!cargandoInfo && info?.rechazada) {
+    return (
+      <main className="min-h-screen bg-[#F2F4F7] flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-sm bg-white rounded-[5px] border border-[#E3E7EC] shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-6 text-center space-y-4">
+          <div className="flex justify-center">
+            <svg
+              className="w-12 h-14"
+              viewBox="0 0 259.8 300"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <polygon fill="#F28C1B" points="0,75 129.9,0 259.8,75 129.9,150" />
+              <polygon fill="#005198" points="0,75 129.9,150 129.9,300 0,225" />
+              <polygon fill="#003A73" points="129.9,150 259.8,75 259.8,225 129.9,300" />
+            </svg>
+          </div>
+          <p className="font-inter text-[15px] text-[#1F2933] leading-relaxed m-0 font-medium">
+            Le avisaste a la tienda que no puedes llevar esta salida. Gracias.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // ========================================================
+  // REQUISITO 0: Si aceptada es false y rechazada es false
+  // Muestra pantalla de aceptar en vez de las entregas
+  // ========================================================
+  if (!cargandoInfo && info && !info.aceptada && !info.rechazada) {
+    return (
+      <>
+        <PantallaAceptarSalida
+          tienda={info.tienda}
+          paradas={paradas}
+          cargandoRespuesta={cargandoRespuestaSalida}
+          onAceptar={handleAceptarSalida}
+          onRechazar={handleRechazarSalida}
+          onAbrirMensajes={handleAbrirMensajes}
+          mensajesNuevos={mensajesNuevosNoLeidos}
+        />
+
+        {/* Los mensajes con la tienda sí funcionan antes de aceptar */}
+        <HojaMensajes
+          abierta={hojaMensajesAbierta}
+          mensajes={mensajes}
+          horaSalidaTexto={horaSalidaChatTexto}
+          onCerrar={() => setHojaMensajesAbierta(false)}
+          onEnviarMensaje={handleEnviarMensaje}
+        />
+      </>
+    );
+  }
+
+  // ========================================================
+  // CASO 3: Pantalla principal de paradas (Aceptada = true)
   // ========================================================
   return (
     <div className="min-h-screen bg-[#F2F4F7] flex flex-col pb-24">
@@ -514,7 +746,10 @@ export default function App() {
         entregadas={paradasEntregadas}
         total={totalParadas}
         cargando={recargandoSegundoPlano || cargandoInicial}
-        onRecargar={() => cargarParadas(false)}
+        onRecargar={() => {
+          cargarParadas(false);
+          cargarInfoSalida();
+        }}
         codigo={codigo}
         mensajesNuevos={mensajesNuevosNoLeidos}
         onAbrirMensajes={handleAbrirMensajes}
@@ -522,7 +757,7 @@ export default function App() {
         onAlternarUbicacion={handleAlternarUbicacion}
       />
 
-      {/* Requisito 2: Aviso emergente arriba cuando llega mensaje de la tienda con la hoja cerrada */}
+      {/* Requisito 2: Aviso emergente arriba cuando llega mensaje de la tienda con el chat cerrado */}
       {avisoMensajeTienda && !hojaMensajesAbierta && (
         <aside
           role="status"
@@ -531,7 +766,7 @@ export default function App() {
           className="fixed top-20 left-4 right-4 z-40 max-w-md mx-auto bg-white border-l-4 border-[#005198] rounded-[5px] shadow-[0_4px_14px_rgba(0,0,0,0.18)] p-3.5 flex items-start justify-between gap-3 animate-in slide-in-from-top-2 duration-200 cursor-pointer"
         >
           <div className="flex items-start gap-2.5 min-w-0">
-            <MessageSquare className="w-5 h-5 text-[#005198] flex-shrink-0 mt-0.5" strokeWidth={2} />
+            <div className="w-5 h-5 text-[#005198] flex-shrink-0 mt-0.5" />
             <div className="min-w-0">
               <span className="font-poppins font-bold text-xs uppercase tracking-wide text-[#003A73] block mb-0.5">
                 Mensaje de la tienda
@@ -541,17 +776,6 @@ export default function App() {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setAvisoMensajeTienda(null);
-            }}
-            className="w-7 h-7 -mr-1 -mt-1 flex items-center justify-center rounded-[5px] text-[#5B6670] hover:text-[#1F2933] hover:bg-black/5 transition-colors cursor-pointer"
-            aria-label="Cerrar aviso"
-          >
-            <X className="w-4 h-4" strokeWidth={2} />
-          </button>
         </aside>
       )}
 
@@ -568,18 +792,10 @@ export default function App() {
               {avisoParadaNueva}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setAvisoParadaNueva(null)}
-            className="w-7 h-7 -mr-1 -mt-1 flex items-center justify-center rounded-[5px] text-[#5B6670] hover:text-[#1F2933] hover:bg-black/5 transition-colors cursor-pointer"
-            aria-label="Cerrar aviso"
-          >
-            <X className="w-4 h-4" strokeWidth={2} />
-          </button>
         </aside>
       )}
 
-      {/* Banner de error general (guardar o subir foto) */}
+      {/* Banner de error general */}
       <AvisoError
         mensaje={mensajeErrorAccion}
         onCerrar={() => setMensajeErrorAccion(null)}
@@ -587,7 +803,7 @@ export default function App() {
 
       {/* Contenedor central optimizado para celulares de 360px en adelante */}
       <main className="flex-1 max-w-md mx-auto w-full px-3.5 pt-3.5 space-y-3.5">
-        {/* Requisito 4: Aviso inicial para compartir ubicación */}
+        {/* Requisito 4: Aviso inicial para compartir ubicación (solo después de aceptar la salida) */}
         {mostrarAvisoUbicacion && (
           <section
             aria-label="Permiso de ubicación"
@@ -631,7 +847,10 @@ export default function App() {
           <div className="bg-white border-l-4 border-[#B03030] p-3 rounded-[5px] text-[13.5px] font-inter text-[#B03030] shadow-sm flex items-center justify-between">
             <span>{errorCarga}</span>
             <button
-              onClick={() => cargarParadas(false)}
+              onClick={() => {
+                cargarParadas(false);
+                cargarInfoSalida();
+              }}
               className="text-[#005198] font-poppins font-semibold text-xs underline cursor-pointer"
             >
               Reintentar
@@ -659,24 +878,39 @@ export default function App() {
             ))}
           </div>
         ) : (
-          /* Lista de paradas en el orden de `orden` */
-          paradas.map((parada) => {
-            const esNueva = paradasNuevasIds.some((id) => String(id) === String(parada.id));
-            return (
-              <TarjetaParada
-                key={parada.id}
-                parada={parada}
-                codigo={codigo}
-                esNueva={esNueva}
-                cargandoEstaParada={paradaCargandoId === parada.id}
-                onMarcarEntregado={handleMarcarEntregado}
-                onAbrirModalNoEntregado={(p) => setParadaParaMotivo(p)}
-                onDeshacer={handleDeshacer}
-                onFotoSubidaExito={handleFotoSubidaExito}
-                onMostrarError={(msg) => setMensajeErrorAccion(msg)}
-              />
-            );
-          })
+          <>
+            {/* Requisito 2: Arriba van las entregas EN CAMINO con la tarjeta grande */}
+            <div className="space-y-3.5">
+              {paradasEnCamino.map((parada) => {
+                const esNueva = paradasNuevasIds.some((id) => String(id) === String(parada.id));
+                return (
+                  <TarjetaParada
+                    key={parada.id}
+                    parada={parada}
+                    codigo={codigo}
+                    esNueva={esNueva}
+                    cargandoEstaParada={paradaCargandoId === parada.id}
+                    fotoEnMemoria={fotosEnMemoria[parada.id]}
+                    onMarcarEntregado={handleMarcarEntregado}
+                    onAbrirModalNoEntregado={(p) => setParadaParaMotivo(p)}
+                    onDeshacer={handleDeshacer}
+                    onFotoSubidaExito={handleFotoSubidaExito}
+                    onMostrarError={(msg) => setMensajeErrorAccion(msg)}
+                    onVerFotoGrande={(url, nombre) => setFotoVisor({ url, nombre })}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Requisito 2: Sección Hechas (N) cerrada por defecto con filas compactas */}
+            <SeccionHechas
+              paradasHechas={paradasHechas}
+              cargandoParadaId={paradaCargandoId}
+              fotosEnMemoria={fotosEnMemoria}
+              onDeshacer={handleDeshacer}
+              onVerFotoGrande={(url, nombre) => setFotoVisor({ url, nombre })}
+            />
+          </>
         )}
       </main>
 
@@ -691,12 +925,20 @@ export default function App() {
         />
       )}
 
-      {/* Requisito 2: Hoja de conversación desde abajo */}
+      {/* Requisito 4: Chat rediseñado estilo WhatsApp con colores DomiRuta */}
       <HojaMensajes
         abierta={hojaMensajesAbierta}
         mensajes={mensajes}
+        horaSalidaTexto={horaSalidaChatTexto}
         onCerrar={() => setHojaMensajesAbierta(false)}
         onEnviarMensaje={handleEnviarMensaje}
+      />
+
+      {/* Requisito 3: Visor de foto en pantalla completa */}
+      <VisorFoto
+        fotoUrl={fotoVisor?.url || null}
+        nombreParada={fotoVisor?.nombre}
+        onCerrar={() => setFotoVisor(null)}
       />
 
       {/* Resumen fijo en la parte inferior */}

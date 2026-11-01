@@ -18,6 +18,8 @@ export interface Parada {
   estado: EstadoEntrega;
   motivo?: string | null;
   tiene_foto?: boolean;
+  venta?: string | null;
+  productos?: number | null;
 }
 
 export interface MarcarEntregaParams {
@@ -32,4 +34,19 @@ export interface Mensaje {
   de: 'tienda' | 'repartidor';
   texto: string;
   creado: string;
+  leido?: boolean;
+}
+
+export interface InfoSalida {
+  tienda: string;
+  repartidor: string;
+  creada: string;
+  aceptada: boolean;
+  rechazada: boolean;
+}
+
+export interface ResumenSalidaGuardado {
+  entregadas: number;
+  noEntregadas: number;
+  plataCobrada: number;
 }
