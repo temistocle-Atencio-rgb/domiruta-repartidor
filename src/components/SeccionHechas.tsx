@@ -64,8 +64,11 @@ export const SeccionHechas: React.FC<SeccionHechasProps> = ({
                     {parada.orden}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-poppins font-semibold text-[14px] text-[#1F2933] leading-snug truncate m-0">
+                    <p className="font-poppins font-semibold text-[14px] text-[#1F2933] leading-snug break-words m-0">
                       {parada.nombre}
+                    </p>
+                    <p className="font-inter text-[12.5px] text-[#5B6670] leading-tight break-words mt-0.5 mb-1">
+                      {parada.direccion}
                     </p>
                     {esEntregado ? (
                       <span className="font-poppins font-semibold text-[13px] text-[#1E7A44] flex items-center gap-1">
@@ -73,7 +76,7 @@ export const SeccionHechas: React.FC<SeccionHechasProps> = ({
                         Entregado
                       </span>
                     ) : (
-                      <span className="font-poppins font-semibold text-[12.5px] text-[#B03030] flex items-center gap-1 truncate">
+                      <span className="font-poppins font-semibold text-[12.5px] text-[#B03030] flex items-center gap-1 break-words">
                         <XCircle className="w-3.5 h-3.5 text-[#B03030] flex-shrink-0" strokeWidth={2} />
                         No entregado{parada.motivo ? ` · ${parada.motivo}` : ''}
                       </span>

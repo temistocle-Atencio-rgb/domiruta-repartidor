@@ -144,16 +144,23 @@ export const PantallaAceptarSalida: React.FC<PantallaAceptarSalidaProps> = ({
             <span className="font-inter text-xs font-semibold text-[#5B6670] uppercase tracking-wider block">
               Paradas:
             </span>
-            <ul className="space-y-1.5 list-none m-0 p-0">
+            <ul className="space-y-2.5 list-none m-0 p-0">
               {direccionesAMostrar.map((parada) => (
                 <li
                   key={parada.id}
-                  className="font-inter text-[13.5px] text-[#1F2933] flex items-start gap-2"
+                  className="font-inter text-[13.5px] text-[#1F2933] flex items-start gap-2.5"
                 >
-                  <MapPin className="w-4 h-4 text-[#005198] flex-shrink-0 mt-0.5" strokeWidth={2} />
-                  <span className="truncate">
-                    <strong className="font-medium text-[#1F2933]">{parada.nombre}</strong> · {parada.direccion}
-                  </span>
+                  <MapPin className="w-4 h-4 text-[#005198] flex-shrink-0 mt-1" strokeWidth={2} />
+                  <div className="min-w-0 flex-1 leading-snug break-words">
+                    <span className="font-semibold text-[#1F2933]">{parada.nombre}</span>
+                    <span className="text-[#5B6670] mx-1">·</span>
+                    <span className="text-[#1F2933] font-normal">{parada.direccion}</span>
+                    {parada.referencia && (
+                      <span className="block text-[12px] text-[#5B6670] italic mt-0.5">
+                        Ref: {parada.referencia}
+                      </span>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
