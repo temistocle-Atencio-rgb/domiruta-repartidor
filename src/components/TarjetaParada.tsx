@@ -17,6 +17,8 @@ interface TarjetaParadaProps {
   onFotoSubidaExito: (paradaId: string | number, dataUrl: string) => void;
   onMostrarError: (mensaje: string) => void;
   onVerFotoGrande: (url: string, nombre: string) => void;
+  salidaAceptada?: boolean;
+  onCorregirUbicacion?: (parada: Parada) => void;
 }
 
 export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
@@ -32,6 +34,8 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
   onFotoSubidaExito,
   onMostrarError,
   onVerFotoGrande,
+  salidaAceptada = false,
+  onCorregirUbicacion,
 }) => {
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -390,6 +394,18 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
             >
               No pude entregar
             </button>
+
+            {/* Opción para corregir ubicación si la salida está aceptada */}
+            {salidaAceptada && onCorregirUbicacion && (
+              <button
+                type="button"
+                onClick={() => onCorregirUbicacion(parada)}
+                disabled={cargandoEstaParada}
+                className="w-full min-h-[48px] bg-transparent text-[#005198] hover:text-[#003A73] hover:underline font-poppins font-medium text-[14px] flex items-center justify-center transition-colors cursor-pointer select-none"
+              >
+                La casa no está aquí
+              </button>
+            )}
           </div>
         )}
       </div>

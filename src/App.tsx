@@ -25,6 +25,7 @@ import { HojaMensajes } from './components/HojaMensajes.tsx';
 import { PantallaAceptarSalida } from './components/PantallaAceptarSalida.tsx';
 import { PantallaPermisoGps } from './components/PantallaPermisoGps.tsx';
 import { VisorFoto } from './components/VisorFoto.tsx';
+import { ModalCorregirUbicacion } from './components/ModalCorregirUbicacion.tsx';
 import { PantallaCliente } from './components/PantallaCliente.tsx';
 import { PantallaConsultarPedido } from './components/PantallaConsultarPedido.tsx';
 import { PantallaMisSalidas } from './components/PantallaMisSalidas.tsx';
@@ -34,7 +35,7 @@ import {
   guardarEnlace,
 } from './utils/dispositivo.ts';
 import { PedidoCliente } from './types.ts';
-import { AlertTriangle, RefreshCw, Clock, ChevronDown, ChevronUp, AlertCircle, Check } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Clock, ChevronDown, ChevronUp, AlertCircle, Check, X } from 'lucide-react';
 
 function vibrarCelular(ms = 200) {
   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
@@ -205,6 +206,21 @@ export default function App() {
   // Modal para "No pude entregar"
   const [paradaParaMotivo, setParadaParaMotivo] = useState<Parada | null>(null);
   const [guardandoMotivo, setGuardandoMotivo] = useState<boolean>(false);
+
+  // Modal para "La casa no está aquí" (corregir ubicación)
+  const [paradaParaCorregir, setParadaParaCorregir] = useState<Parada | null>(null);
+  const [avisoNotificacion, setAvisoNotificacion] = useState<{
+    texto: string;
+    tipo: 'exito' | 'info' | 'error';
+  } | null>(null);
+
+  useEffect(() => {
+    if (!avisoNotificacion) return;
+    const timer = setTimeout(() => {
+      setAvisoNotificacion(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [avisoNotificacion]);
 
   // Paradas nuevas agregadas en tiempo real por la tienda
   const [paradasNuevasIds, setParadasNuevasIds] = useState<(string | number)[]>([]);
@@ -918,6 +934,54 @@ export default function App() {
     );
   };
 
+  // Obtener última lectura de GPS si se leyó hace menos de 30s y con precisión < 50m
+  const obtenerGpsFresco = useCallback((): { lat: number; lon: number } | null => {
+    const lectura = ultimaLecturaGpsRef.current;
+    if (!lectura) return null;
+    const ahora = Date.now();
+    const esReciente = ahora - lectura.timestamp < 30000;
+    const esPrecisa = lectura.precision < 50;
+    if (esReciente && esPrecisa) {
+      return { lat: lectura.lat, lon: lectura.lon };
+    }
+    return null;
+  }, []);
+
+  // Manejar respuesta exitosa de corrección de ubicación
+  const handleExitoCorregirUbicacion = (
+    paradaId: string | number,
+    nuevaLat: number,
+    nuevaLon: number,
+    tipo: 'aplicada' | 'pendiente'
+  ) => {
+    setParadas((prev) =>
+      prev.map((p) =>
+        String(p.id) === String(paradaId)
+          ? {
+              ...p,
+              lat: nuevaLat,
+              lon: nuevaLon,
+              ubicacion_pendiente: tipo === 'pendiente',
+            }
+          : p
+      )
+    );
+
+    if (tipo === 'aplicada') {
+      setAvisoNotificacion({
+        texto: 'Listo, la ubicación quedó corregida',
+        tipo: 'exito',
+      });
+    } else {
+      setAvisoNotificacion({
+        texto: 'Gracias. La tienda revisará la ubicación',
+        tipo: 'info',
+      });
+    }
+
+    setParadaParaCorregir(null);
+  };
+
   // Cálculos de totales
   const totalParadas = paradas.length;
   const paradasEntregadas = useMemo(
@@ -1245,6 +1309,46 @@ export default function App() {
         onCerrar={() => setMensajeErrorAccion(null)}
       />
 
+      {/* Aviso de corrección de ubicación u otras acciones */}
+      {avisoNotificacion && (
+        <aside
+          role="status"
+          aria-live="polite"
+          className={`fixed top-20 left-4 right-4 z-40 max-w-md mx-auto bg-white border-l-4 ${
+            avisoNotificacion.tipo === 'exito'
+              ? 'border-[#1E7A44]'
+              : avisoNotificacion.tipo === 'error'
+              ? 'border-[#B03030]'
+              : 'border-[#005198]'
+          } rounded-[5px] shadow-[0_4px_14px_rgba(0,0,0,0.18)] p-3.5 flex items-start justify-between gap-3 animate-in slide-in-from-top-2 duration-200`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            {avisoNotificacion.tipo === 'exito' && (
+              <Check className="w-5 h-5 text-[#1E7A44] flex-shrink-0" strokeWidth={2.5} />
+            )}
+            <p
+              className={`font-inter text-[14px] font-medium leading-snug m-0 ${
+                avisoNotificacion.tipo === 'exito'
+                  ? 'text-[#1E7A44]'
+                  : avisoNotificacion.tipo === 'error'
+                  ? 'text-[#B03030]'
+                  : 'text-[#003A73]'
+              }`}
+            >
+              {avisoNotificacion.texto}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAvisoNotificacion(null)}
+            className="w-7 h-7 -mr-1 -mt-1 flex items-center justify-center rounded-[5px] text-[#5B6670] hover:text-[#1F2933] hover:bg-black/5 transition-colors cursor-pointer"
+            aria-label="Cerrar aviso"
+          >
+            <X className="w-4 h-4" strokeWidth={2} />
+          </button>
+        </aside>
+      )}
+
       {/* Contenido principal */}
       <main className="flex-1 w-full flex flex-col">
         {/* Pantalla 4: Si no queda ninguna parada en camino, se muestra el bloque de terminada */}
@@ -1314,6 +1418,8 @@ export default function App() {
                     onFotoSubidaExito={handleFotoSubidaExito}
                     onMostrarError={(msg) => setMensajeErrorAccion(msg)}
                     onVerFotoGrande={(url, nombre) => setFotoVisor({ url, nombre })}
+                    salidaAceptada={salidaAceptada}
+                    onCorregirUbicacion={(p) => setParadaParaCorregir(p)}
                   />
                 </section>
               )}
@@ -1358,6 +1464,8 @@ export default function App() {
                           onFotoSubidaExito={handleFotoSubidaExito}
                           onMostrarError={(msg) => setMensajeErrorAccion(msg)}
                           onVerFotoGrande={(url, nombre) => setFotoVisor({ url, nombre })}
+                          salidaAceptada={salidaAceptada}
+                          onCorregirUbicacion={(p) => setParadaParaCorregir(p)}
                         />
                       ))}
                     </div>
@@ -1428,6 +1536,18 @@ export default function App() {
           guardando={guardandoMotivo}
           onCerrar={() => setParadaParaMotivo(null)}
           onConfirmar={handleConfirmarMotivo}
+        />
+      )}
+
+      {/* Modal para "La casa no está aquí" (corregir ubicación arrastrando el pin) */}
+      {paradaParaCorregir && codigo && (
+        <ModalCorregirUbicacion
+          parada={paradaParaCorregir}
+          codigo={codigo}
+          posicionGps={posicionMoto}
+          obtenerGpsFresco={obtenerGpsFresco}
+          onCerrar={() => setParadaParaCorregir(null)}
+          onExito={handleExitoCorregirUbicacion}
         />
       )}
 

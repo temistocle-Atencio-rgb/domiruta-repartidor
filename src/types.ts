@@ -21,6 +21,7 @@ export interface Parada {
   tiene_foto?: boolean;
   venta?: string | null;
   productos?: number | null;
+  ubicacion_pendiente?: boolean;
 }
 
 export interface InfoSalida {

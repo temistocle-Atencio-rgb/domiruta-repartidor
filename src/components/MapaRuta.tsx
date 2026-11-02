@@ -187,7 +187,10 @@ export const MapaRuta: React.FC<MapaRutaProps> = ({
         });
       }
 
-      const m = L.marker([parada.lat, parada.lon], { icon })
+      const m = L.marker([parada.lat, parada.lon], {
+        icon,
+        opacity: parada.ubicacion_pendiente ? 0.6 : 1,
+      })
         .addTo(map)
         .bindPopup(popupTexto(`#${parada.orden} · ${parada.nombre}`, parada.direccion));
 

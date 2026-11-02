@@ -544,3 +544,44 @@ export async function cambiarDisponible(
   }
 }
 
+// -------------------------------------------------------------
+// Función RPC: corregir_ubicacion
+// -------------------------------------------------------------
+export async function corregirUbicacion(
+  codigo: string,
+  id: string | number,
+  lat: number,
+  lon: number,
+  gpsLat: number | null,
+  gpsLon: number | null
+): Promise<'aplicada' | 'pendiente' | null> {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('La página no está configurada. Avísale a la tienda.');
+  }
+
+  try {
+    const { data, error } = await client.rpc('corregir_ubicacion', {
+      p_codigo: codigo,
+      p_id: id,
+      p_lat: lat,
+      p_lon: lon,
+      p_gps_lat: gpsLat,
+      p_gps_lon: gpsLon,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc corregir_ubicacion:', error);
+      throw error;
+    }
+
+    if (data === 'aplicada' || data === 'pendiente') {
+      return data;
+    }
+    return null;
+  } catch (err) {
+    console.error('Fallo llamando a Supabase RPC corregir_ubicacion:', err);
+    throw err;
+  }
+}
+
