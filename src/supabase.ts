@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Parada, Mensaje, InfoSalida, RutaSalida, EstadoEntrega } from './types.ts';
+import { Parada, Mensaje, InfoSalida, RutaSalida, EstadoEntrega, PedidoCliente, RespuestaPedidoCodigo } from './types.ts';
 
 // ============================================================
 // CONSTANTES DE CONFIGURACIÓN DE SUPABASE
@@ -327,4 +327,105 @@ export function formatearPesos(valor: number): string {
   if (typeof valor !== 'number' || isNaN(valor)) return '$0';
   const formateado = Math.round(valor).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return `$${formateado}`;
+}
+
+// -------------------------------------------------------------
+// Función RPC: ver_pedido
+// -------------------------------------------------------------
+export async function verPedido(enlace: string): Promise<PedidoCliente | null> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await client.rpc('ver_pedido', {
+      p_enlace: enlace,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc ver_pedido:', error);
+      return null;
+    }
+
+    if (!data) return null;
+
+    if (Array.isArray(data)) {
+      return (data[0] as PedidoCliente) || null;
+    }
+    return data as PedidoCliente;
+  } catch (err) {
+    console.error('Fallo llamando a ver_pedido:', err);
+    return null;
+  }
+}
+
+// -------------------------------------------------------------
+// Función RPC: ver_pedido_codigo
+// -------------------------------------------------------------
+export async function verPedidoCodigo(
+  codigo: string,
+  ultimos4: string
+): Promise<RespuestaPedidoCodigo> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return { tipo: 'no_encontrado' };
+  }
+
+  try {
+    const { data, error } = await client.rpc('ver_pedido_codigo', {
+      p_codigo: codigo,
+      p_ultimos4: ultimos4,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc ver_pedido_codigo:', error);
+      return { tipo: 'no_encontrado' };
+    }
+
+    if (!data) {
+      return { tipo: 'no_encontrado' };
+    }
+
+    const payload = Array.isArray(data) ? data[0] : data;
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      'error' in payload &&
+      (payload as { error: string }).error === 'espera'
+    ) {
+      return { tipo: 'espera' };
+    }
+
+    if (payload && typeof payload === 'object' && 'estado' in payload) {
+      return { tipo: 'exito', data: payload as PedidoCliente };
+    }
+
+    return { tipo: 'no_encontrado' };
+  } catch (err) {
+    console.error('Fallo llamando a ver_pedido_codigo:', err);
+    return { tipo: 'no_encontrado' };
+  }
+}
+
+// -------------------------------------------------------------
+// Formato amigable de hora para entregas (ej. "10:42 a. m.")
+// -------------------------------------------------------------
+export function formatearHoraEntrega(fechaIso: string | null): string {
+  if (!fechaIso) return '';
+  try {
+    // Normalizar si viene con formato postgres tipo "2026-11-02 10:42:00+00"
+    const fechaLimpia = fechaIso.includes(' ') && !fechaIso.includes('T')
+      ? fechaIso.replace(' ', 'T')
+      : fechaIso;
+    const d = new Date(fechaLimpia);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString('es-CO', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return '';
+  }
 }

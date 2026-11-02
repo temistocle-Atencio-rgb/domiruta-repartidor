@@ -58,3 +58,20 @@ export interface ResumenSalidaGuardado {
   noEntregadas: number;
   plataCobrada: number;
 }
+
+export interface PedidoCliente {
+  tienda: string;
+  nombre: string;
+  estado: 'preparando' | 'en_camino' | 'entregado' | 'no_entregado';
+  faltan_antes: number;
+  repartidor: string;
+  destino: { lat: number; lon: number } | null;
+  moto: { lat: number; lon: number; rumbo: number | null; hora: string } | null;
+  ubicacion_pausada: boolean;
+  entregada_en: string | null;
+}
+
+export type RespuestaPedidoCodigo =
+  | { tipo: 'exito'; data: PedidoCliente }
+  | { tipo: 'espera' }
+  | { tipo: 'no_encontrado' };

@@ -25,6 +25,9 @@ import { HojaMensajes } from './components/HojaMensajes.tsx';
 import { PantallaAceptarSalida } from './components/PantallaAceptarSalida.tsx';
 import { PantallaPermisoGps } from './components/PantallaPermisoGps.tsx';
 import { VisorFoto } from './components/VisorFoto.tsx';
+import { PantallaCliente } from './components/PantallaCliente.tsx';
+import { PantallaConsultarPedido } from './components/PantallaConsultarPedido.tsx';
+import { PedidoCliente } from './types.ts';
 import { AlertTriangle, RefreshCw, Clock, ChevronDown, ChevronUp, AlertCircle, Check } from 'lucide-react';
 
 function vibrarCelular(ms = 200) {
@@ -57,15 +60,26 @@ function safeSetStorage(key: string, value: string): void {
 
 export default function App() {
   // 1. Detección de parámetros de la URL
-  const { codigo, esEtapaSiguiente } = useMemo(() => {
+  const { codigo, esCliente, enlaceCliente, esEtapaSiguiente } = useMemo(() => {
     if (typeof window === 'undefined') {
-      return { codigo: null, esEtapaSiguiente: false };
+      return { codigo: null, esCliente: false, enlaceCliente: null, esEtapaSiguiente: false };
     }
     const params = new URLSearchParams(window.location.search);
-    const siguiente = params.has('r') || params.has('p');
+    const siguiente = params.has('r');
+    const esP = params.has('p');
+    const paramP = params.get('p')?.trim() || null;
     const paramS = params.get('s')?.trim() || null;
-    return { codigo: paramS, esEtapaSiguiente: siguiente };
+    return {
+      codigo: paramS,
+      esCliente: esP,
+      enlaceCliente: paramP,
+      esEtapaSiguiente: siguiente,
+    };
   }, []);
+
+  // Estado para la pantalla de consulta de pedidos (cuando el cliente entra con ?p sin enlace)
+  const [pedidoEncontrado, setPedidoEncontrado] = useState<PedidoCliente | null>(null);
+  const [consultaCliente, setConsultaCliente] = useState<{ codigo: string; ultimos4: string } | null>(null);
 
   // 2. Información y Ruta de la salida (Supabase RPC)
   const [info, setInfo] = useState<InfoSalida | null>(null);
@@ -844,7 +858,36 @@ export default function App() {
   }, [info?.creada]);
 
   // ========================================================
-  // CASO A: Parámetros ?r= o ?p= (etapas siguientes)
+  // CASO A1: Pantalla del cliente (?p=ENLACE o ?p para consultar)
+  // ========================================================
+  if (esCliente) {
+    if (enlaceCliente) {
+      return <PantallaCliente enlace={enlaceCliente} />;
+    }
+    if (pedidoEncontrado && consultaCliente) {
+      return (
+        <PantallaCliente
+          consultaInicial={consultaCliente}
+          pedidoInicial={pedidoEncontrado}
+          onVolverAConsulta={() => {
+            setPedidoEncontrado(null);
+            setConsultaCliente(null);
+          }}
+        />
+      );
+    }
+    return (
+      <PantallaConsultarPedido
+        onPedidoEncontrado={(pedido, consulta) => {
+          setPedidoEncontrado(pedido);
+          setConsultaCliente(consulta);
+        }}
+      />
+    );
+  }
+
+  // ========================================================
+  // CASO A2: Parámetro ?r= (etapas siguientes)
   // ========================================================
   if (esEtapaSiguiente) {
     return (
