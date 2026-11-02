@@ -22,6 +22,7 @@ export interface Parada {
   venta?: string | null;
   productos?: number | null;
   ubicacion_pendiente?: boolean;
+  pendiente_envio?: boolean; // se marcó sin señal y falta mandarla
 }
 
 export interface InfoSalida {

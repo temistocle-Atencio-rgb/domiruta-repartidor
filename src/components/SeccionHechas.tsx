@@ -35,7 +35,9 @@ export const SeccionHechas: React.FC<SeccionHechasProps> = ({
             Hechas ({paradasHechas.length})
           </span>
           <span className="font-inter text-xs text-[#5B6670]">
-            {abierta ? 'Toca para ocultar' : 'Toca para ver'}
+            {paradasHechas.some((p) => p.pendiente_envio)
+              ? `${paradasHechas.filter((p) => p.pendiente_envio).length} por enviar (sin señal)`
+              : abierta ? 'Toca para ocultar' : 'Toca para ver'}
           </span>
         </div>
         {abierta ? (
@@ -80,6 +82,9 @@ export const SeccionHechas: React.FC<SeccionHechasProps> = ({
                         <XCircle className="w-3.5 h-3.5 text-[#B03030] flex-shrink-0" strokeWidth={2} />
                         No entregado{parada.motivo ? ` · ${parada.motivo}` : ''}
                       </span>
+                    )}
+                    {parada.pendiente_envio && (
+                      <p className="font-inter text-[12.5px] text-[#5B6670] mt-1 mb-0">Se enviará al volver la señal</p>
                     )}
                   </div>
                 </div>

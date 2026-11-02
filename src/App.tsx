@@ -5,7 +5,7 @@ import {
   rutaSalida,
   responderSalida,
   verSalida,
-  marcarEntregaGps,
+  marcarEntregaDetalle,
   enviarPosicion,
   pausarUbicacion,
   verMensajes,
@@ -14,6 +14,7 @@ import {
   formatearPesos,
 } from './supabase.ts';
 import { validarLecturaGps, pegarALaRutaDesde, pegarALaCalle } from './utils/geo.ts';
+import { avisarConSonido } from './utils/aviso.ts';
 import { Header } from './components/Header.tsx';
 import { MapaRuta } from './components/MapaRuta.tsx';
 import { TarjetaParada } from './components/TarjetaParada.tsx';
@@ -255,6 +256,29 @@ export default function App() {
 
   // Referencias para seguimiento y filtrado GPS
   const rechazosSeguidosRef = useRef(0);
+  // marcas hechas sin señal: se guardan en este celular y se mandan solas cuando vuelve
+  type MarcaPendiente = { id: string | number; estado: 'entregado' | 'no_entregado' | 'en_camino'; motivo: string; lat: number | null; lon: number | null; hora: number };
+  const claveCola = 'domiruta_cola_marcas_' + (codigo || '');
+  const [colaMarcas, setColaMarcas] = useState<MarcaPendiente[]>(() => {
+    try {
+      const t = codigo ? localStorage.getItem('domiruta_cola_marcas_' + codigo) : null;
+      return t ? (JSON.parse(t) as MarcaPendiente[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  const colaMarcasRef = useRef<MarcaPendiente[]>(colaMarcas);
+  colaMarcasRef.current = colaMarcas;
+  const guardarCola = (l: MarcaPendiente[]) => {
+    colaMarcasRef.current = l;
+    setColaMarcas(l);
+    try {
+      if (l.length) localStorage.setItem(claveCola, JSON.stringify(l));
+      else localStorage.removeItem(claveCola);
+    } catch {
+      // sin almacenamiento: la cola vive mientras la página esté abierta
+    }
+  };
   const correccionesRef = useRef(new Map<string, { lat: number; lon: number; pendiente: boolean }>());
   const aceptandoRef = useRef(false);
   const enviandoRef = useRef(false);
@@ -408,7 +432,9 @@ export default function App() {
         setParadas(
           ordenadas.map((p) => {
             const c = corregidas.get(String(p.id));
-            return c ? { ...p, lat: c.lat, lon: c.lon, ubicacion_pendiente: c.pendiente } : p;
+            const conCorreccion = c ? { ...p, lat: c.lat, lon: c.lon, ubicacion_pendiente: c.pendiente } : p;
+            const q = colaMarcasRef.current.find((x) => String(x.id) === String(p.id));
+            return q ? { ...conCorreccion, estado: q.estado, motivo: q.motivo || null, pendiente_envio: true } : conCorreccion;
           })
         );
         setSalidaCerradaOVacia(ordenadas.length === 0);
@@ -492,7 +518,7 @@ export default function App() {
           if (deTienda.length > 0) {
             const ultimoDeTienda = deTienda[deTienda.length - 1];
             setAvisoMensajeTienda(`Tienda: ${ultimoDeTienda.texto}`);
-            vibrarCelular(200);
+            avisarConSonido();
             setMensajesNuevosNoLeidos((n) => n + deTienda.length);
 
             setTimeout(() => {
@@ -850,31 +876,76 @@ export default function App() {
   // --------------------------------------------------------------------------
   // Marcar entregas con la posición GPS actual
   // --------------------------------------------------------------------------
+  /**
+   * Marca la parada. Sin señal la guarda en la cola (queda marcada en pantalla con «Se enviará…»).
+   * Devuelve false solo si la base la rechazó.
+   */
+  const marcarConCola = async (
+    paradaId: string | number,
+    estado: 'entregado' | 'no_entregado' | 'en_camino',
+    motivo: string
+  ): Promise<boolean> => {
+    if (!codigo) return false;
+    const latGps = posicionMoto?.lat ?? null;
+    const lonGps = posicionMoto?.lon ?? null;
+    const sinEsta = colaMarcasRef.current.filter((x) => String(x.id) !== String(paradaId));
+    const r = navigator.onLine
+      ? await marcarEntregaDetalle(codigo, paradaId, estado, motivo, latGps, lonGps)
+      : 'sin_red';
+    if (r === 'rechazada') {
+      guardarCola(sinEsta);
+      setMensajeErrorAccion('La tienda ya cerró esta salida');
+      return false;
+    }
+    const pendiente = r === 'sin_red';
+    guardarCola(pendiente
+      ? [...sinEsta, { id: paradaId, estado, motivo, lat: latGps, lon: lonGps, hora: Date.now() }]
+      : sinEsta);
+    setParadas((prev) =>
+      prev.map((p) =>
+        String(p.id) === String(paradaId)
+          ? { ...p, estado, motivo: estado === 'no_entregado' ? motivo : null, pendiente_envio: pendiente }
+          : p
+      )
+    );
+    return true;
+  };
+
+  // Se reintenta la cola cada 10 s y apenas vuelve la conexión
+  useEffect(() => {
+    if (!codigo) return;
+    let enviando = false;
+    const vaciar = async () => {
+      if (enviando || colaMarcasRef.current.length === 0 || !navigator.onLine) return;
+      enviando = true;
+      try {
+        for (const m of [...colaMarcasRef.current]) {
+          const r = await marcarEntregaDetalle(codigo, m.id, m.estado, m.motivo, m.lat, m.lon);
+          if (r === 'sin_red') break;
+          guardarCola(colaMarcasRef.current.filter((x) => !(String(x.id) === String(m.id) && x.hora === m.hora)));
+          if (r === 'rechazada') {
+            setMensajeErrorAccion('La tienda ya cerró esta salida');
+          }
+          setParadas((prev) => prev.map((p) => (String(p.id) === String(m.id) ? { ...p, pendiente_envio: false } : p)));
+        }
+      } finally {
+        enviando = false;
+      }
+    };
+    const intervalo = setInterval(vaciar, 10000);
+    window.addEventListener('online', vaciar);
+    vaciar();
+    return () => {
+      clearInterval(intervalo);
+      window.removeEventListener('online', vaciar);
+    };
+  }, [codigo]);
+
   const handleMarcarEntregado = async (parada: Parada) => {
     if (paradaCargandoId !== null || !codigo) return;
     setParadaCargandoId(parada.id);
     setMensajeErrorAccion(null);
-
-    const latGps = posicionMoto?.lat ?? null;
-    const lonGps = posicionMoto?.lon ?? null;
-
-    const guardadoExitoso = await marcarEntregaGps(
-      codigo,
-      parada.id,
-      'entregado',
-      null,
-      latGps,
-      lonGps
-    );
-
-    if (guardadoExitoso) {
-      setParadas((prev) =>
-        prev.map((p) => (p.id === parada.id ? { ...p, estado: 'entregado', motivo: null } : p))
-      );
-    } else {
-      setMensajeErrorAccion('No se pudo guardar. Revisa el internet y toca otra vez');
-    }
-
+    await marcarConCola(parada.id, 'entregado', '');
     setParadaCargandoId(null);
   };
 
@@ -882,27 +953,7 @@ export default function App() {
     if (paradaCargandoId !== null || !codigo) return;
     setParadaCargandoId(parada.id);
     setMensajeErrorAccion(null);
-
-    const latGps = posicionMoto?.lat ?? null;
-    const lonGps = posicionMoto?.lon ?? null;
-
-    const guardadoExitoso = await marcarEntregaGps(
-      codigo,
-      parada.id,
-      'en_camino',
-      null,
-      latGps,
-      lonGps
-    );
-
-    if (guardadoExitoso) {
-      setParadas((prev) =>
-        prev.map((p) => (p.id === parada.id ? { ...p, estado: 'en_camino', motivo: null } : p))
-      );
-    } else {
-      setMensajeErrorAccion('No se pudo guardar. Revisa el internet y toca otra vez');
-    }
-
+    await marcarConCola(parada.id, 'en_camino', '');
     setParadaCargandoId(null);
   };
 
@@ -911,30 +962,33 @@ export default function App() {
     const paradaId = paradaParaMotivo.id;
     setGuardandoMotivo(true);
     setMensajeErrorAccion(null);
-
-    const latGps = posicionMoto?.lat ?? null;
-    const lonGps = posicionMoto?.lon ?? null;
-
-    const guardadoExitoso = await marcarEntregaGps(
-      codigo,
-      paradaId,
-      'no_entregado',
-      motivo,
-      latGps,
-      lonGps
-    );
-
-    if (guardadoExitoso) {
-      setParadas((prev) =>
-        prev.map((p) => (p.id === paradaId ? { ...p, estado: 'no_entregado', motivo } : p))
-      );
+    if (await marcarConCola(paradaId, 'no_entregado', motivo)) {
       setParadaParaMotivo(null);
-    } else {
-      setMensajeErrorAccion('No se pudo guardar. Revisa el internet y toca otra vez');
     }
-
     setGuardandoMotivo(false);
   };
+
+  // Pantalla encendida mientras va en ruta (en la moto el celular va en el soporte)
+  useEffect(() => {
+    const enRuta = Boolean(info?.aceptada) && paradas.some((p) => p.estado === 'en_camino');
+    if (!enRuta || typeof navigator === 'undefined' || !('wakeLock' in navigator)) return;
+    let candado: { release: () => Promise<void> } | null = null;
+    const pedir = async () => {
+      try {
+        if (document.visibilityState === 'visible') {
+          candado = await (navigator as unknown as { wakeLock: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } }).wakeLock.request('screen');
+        }
+      } catch {
+        // el navegador no lo permite: la página sigue igual
+      }
+    };
+    pedir();
+    document.addEventListener('visibilitychange', pedir);
+    return () => {
+      document.removeEventListener('visibilitychange', pedir);
+      candado?.release().catch(() => undefined);
+    };
+  }, [info?.aceptada, paradas]);
 
   const handleFotoSubidaExito = (paradaId: string | number, dataUrl: string) => {
     setFotosEnMemoria((prev) => ({ ...prev, [paradaId]: dataUrl }));
@@ -1366,9 +1420,15 @@ export default function App() {
           <div className="max-w-md mx-auto w-full px-4 pt-6 pb-4 space-y-4 text-center">
             <div className="py-4">
               {/* Texto verde sin fondo según manual de marca */}
-              <h2 className="font-poppins font-bold text-[22px] text-[#1E7A44] leading-snug m-0">
-                Terminaste. Regresa a la tienda con {formatearPesos(plataATraer)}
-              </h2>
+              {colaMarcas.length > 0 ? (
+                <h2 className="font-poppins font-bold text-[22px] text-[#8A4B00] leading-snug m-0">
+                  Hay entregas por enviar: no cierres la app
+                </h2>
+              ) : (
+                <h2 className="font-poppins font-bold text-[22px] text-[#1E7A44] leading-snug m-0">
+                  Terminaste. Regresa a la tienda con {formatearPesos(plataATraer)}
+                </h2>
+              )}
               <p className="font-inter text-[14px] text-[#5B6670] mt-2 mb-0">
                 Todas las paradas han sido atendidas.
               </p>
@@ -1430,6 +1490,7 @@ export default function App() {
                     onVerFotoGrande={(url, nombre) => setFotoVisor({ url, nombre })}
                     salidaAceptada={salidaAceptada}
                     onCorregirUbicacion={(p) => setParadaParaCorregir(p)}
+                    tienda={info?.tienda ?? ''}
                   />
                 </section>
               )}
@@ -1476,6 +1537,7 @@ export default function App() {
                           onVerFotoGrande={(url, nombre) => setFotoVisor({ url, nombre })}
                           salidaAceptada={salidaAceptada}
                           onCorregirUbicacion={(p) => setParadaParaCorregir(p)}
+                          tienda={info?.tienda ?? ''}
                         />
                       ))}
                     </div>

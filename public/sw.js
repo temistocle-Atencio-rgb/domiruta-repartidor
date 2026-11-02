@@ -1,5 +1,5 @@
 // DomiRuta Service Worker
-const CACHE_NAME = 'domiruta-v2';
+const CACHE_NAME = 'domiruta-v3';
 
 // Recursos esenciales que se pre-cachean al instalar
 const PRECACHE_ASSETS = [
@@ -102,6 +102,52 @@ self.addEventListener('fetch', (event) => {
         .catch(() => null);
 
       return cachedResponse || fetchPromise.then((r) => r || Response.error());
+    })
+  );
+});
+
+// ---------------------------------------------------------------
+// Avisos (etapa F): llegan aunque la app esté cerrada
+// ---------------------------------------------------------------
+self.addEventListener('push', (event) => {
+  let datos = {};
+  try {
+    datos = event.data ? event.data.json() : {};
+  } catch (e) {
+    datos = { texto: event.data ? event.data.text() : '' };
+  }
+  const titulo = (datos.titulo || 'DomiRuta').toString().slice(0, 80);
+  const url = (datos.url || './').toString();
+  event.waitUntil(
+    self.registration.showNotification(titulo, {
+      body: (datos.texto || '').toString().slice(0, 200),
+      icon: 'iconos/app-192.png',
+      badge: 'iconos/app-192.png',
+      vibrate: [200, 100, 200],
+      tag: url,
+      data: { url },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const scope = self.registration.scope;
+  let destino = scope;
+  try {
+    const u = new URL((event.notification.data && event.notification.data.url) || './', scope);
+    if (u.href.startsWith(scope)) destino = u.href; // solo dentro de la app
+  } catch (e) {
+    destino = scope;
+  }
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((ventanas) => {
+      for (const v of ventanas) {
+        if (v.url.startsWith(scope) && 'focus' in v) {
+          return v.navigate(destino).then((w) => (w || v).focus()).catch(() => v.focus());
+        }
+      }
+      return self.clients.openWindow(destino);
     })
   );
 });

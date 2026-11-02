@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RespuestaMisSalidas, SalidaResumen } from '../types.ts';
+import { AvisosPush } from './AvisosPush.tsx';
+import { avisarConSonido } from '../utils/aviso.ts';
 import {
   misSalidas,
   confirmarDispositivo,
@@ -36,6 +38,7 @@ export function PantallaMisSalidas({
     return obtenerCacheMisSalidas<RespuestaMisSalidas>();
   });
   const [cargando, setCargando] = useState<boolean>(!datos);
+  const vistasRef = useRef<Set<string> | null>(null); // salidas nuevas que ya se avisaron (null = primera carga)
   const [refrescando, setRefrescando] = useState<boolean>(false);
   const [enlaceInvalido, setEnlaceInvalido] = useState<boolean>(false);
   const [otroDispositivo, setOtroDispositivo] = useState<boolean>(false);
@@ -160,6 +163,14 @@ export function PantallaMisSalidas({
         setOtroDispositivo(false);
         setNombreRepartidor(respuesta.nombre || '');
         setDisponible(Boolean(respuesta.disponible));
+        // salida nueva que antes no estaba: tono y vibración
+        const nuevas = (respuesta.salidas || [])
+          .filter((x) => x.estado === 'asignada')
+          .map((x) => x.codigo);
+        if (vistasRef.current !== null && nuevas.some((c) => !vistasRef.current!.has(c))) {
+          avisarConSonido();
+        }
+        vistasRef.current = new Set([...(vistasRef.current ?? []), ...nuevas]);
         setDatos(respuesta);
         guardarCacheMisSalidas(respuesta);
         setUsandoCache(false);
@@ -526,6 +537,8 @@ export function PantallaMisSalidas({
         </section>
 
         {/* ------------------------------------------------------- */}
+        <AvisosPush enlace={enlace} dispositivo={dispositivo} esIos={esIos} esStandalone={esStandalone} />
+
         {/* 1. SECCIÓN: Salida nueva (si hay una recién asignada) */}
         {/* ------------------------------------------------------- */}
         {salidaNueva && (

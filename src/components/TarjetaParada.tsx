@@ -19,6 +19,7 @@ interface TarjetaParadaProps {
   onVerFotoGrande: (url: string, nombre: string) => void;
   salidaAceptada?: boolean;
   onCorregirUbicacion?: (parada: Parada) => void;
+  tienda?: string;
 }
 
 export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
@@ -36,7 +37,9 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
   onVerFotoGrande,
   salidaAceptada = false,
   onCorregirUbicacion,
+  tienda = '',
 }) => {
+  const [elegirNavegador, setElegirNavegador] = useState(false);
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,7 +52,10 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
     const digitos = parada.telefono.replace(/\D/g, '');
     if (digitos.length > 0) {
       const numeroCol = digitos.startsWith('57') && digitos.length >= 12 ? digitos : `57${digitos}`;
-      urlWhatsApp = `https://wa.me/${numeroCol}`;
+      const primerNombre = (parada.nombre || '').trim().split(/\s+/)[0] || '';
+      const deTienda = tienda.trim() ? `el domiciliario de ${tienda.trim()}` : 'tu domiciliario';
+      const texto = `Hola${primerNombre ? ' ' + primerNombre : ''}, soy ${deTienda}. Estoy afuera con tu pedido.`;
+      urlWhatsApp = `https://wa.me/${numeroCol}?text=${encodeURIComponent(texto)}`;
     }
   }
 
@@ -63,8 +69,27 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
       : 0;
 
   const urlComoLlegar = tieneCoordenadas
-    ? `https://www.google.com/maps/dir/?api=1&destination=${parada.lat},${parada.lon}`
+    ? `https://www.google.com/maps/dir/?api=1&destination=${parada.lat},${parada.lon}&travelmode=driving`
     : null;
+  const urlWaze = tieneCoordenadas ? `https://waze.com/ul?ll=${parada.lat},${parada.lon}&navigate=yes` : null;
+  let preferido = 'google';
+  try {
+    preferido = localStorage.getItem('domiruta_navegador') || 'google';
+  } catch {
+    // sin almacenamiento: Google Maps de primero
+  }
+  const opcionesNavegador = [
+    { clave: 'google', texto: 'Google Maps', url: urlComoLlegar },
+    { clave: 'waze', texto: 'Waze', url: urlWaze },
+  ].sort((a, b) => (a.clave === preferido ? -1 : b.clave === preferido ? 1 : 0));
+  const recordarNavegador = (clave: string) => {
+    try {
+      localStorage.setItem('domiruta_navegador', clave);
+    } catch {
+      // no importa
+    }
+    setElegirNavegador(false);
+  };
 
   // Línea de venta y productos
   const tieneVenta = Boolean(parada.venta && parada.venta.trim().length > 0);
@@ -213,20 +238,44 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
           )}
 
           {urlComoLlegar ? (
-            <a
-              href={urlComoLlegar}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => setElegirNavegador((v) => !v)}
+              aria-expanded={elegirNavegador}
               className="min-h-[48px] px-2 bg-white hover:bg-[#F2F4F7] active:bg-[#E3E7EC] text-[#005198] border border-[#005198] rounded-[5px] font-poppins font-semibold text-[12px] leading-tight flex flex-col items-center justify-center gap-0.5 py-1 transition-colors cursor-pointer select-none text-center"
               aria-label={`Cómo llegar a ${parada.direccion}`}
             >
               <Navigation className="w-4 h-4 flex-shrink-0" strokeWidth={2} />
               <span className="truncate">Cómo llegar</span>
-            </a>
+            </button>
           ) : (
             <div />
           )}
         </div>
+      )}
+
+      {/* Escoger con qué app llegar (se recuerda la última) */}
+      {elegirNavegador && (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {opcionesNavegador.map((o) =>
+            o.url ? (
+              <a
+                key={o.clave}
+                href={o.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => recordarNavegador(o.clave)}
+                className="min-h-[48px] px-2 bg-white hover:bg-[#F2F4F7] text-[#003A73] border border-[#E3E7EC] rounded-[5px] font-poppins font-semibold text-[13px] flex items-center justify-center cursor-pointer select-none"
+              >
+                {o.texto}
+              </a>
+            ) : null
+          )}
+        </div>
+      )}
+
+      {parada.pendiente_envio && (
+        <p className="mt-2 mb-0 font-inter text-[13px] text-[#5B6670]">Se enviará al volver la señal</p>
       )}
 
       {/* Estados y Acciones de la entrega */}

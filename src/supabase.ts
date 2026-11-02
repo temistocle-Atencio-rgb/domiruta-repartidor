@@ -5,6 +5,9 @@ import { SalidaResumen, Parada, Mensaje, InfoSalida, RutaSalida, EstadoEntrega, 
 // CONSTANTES DE CONFIGURACIÓN DE SUPABASE
 // ============================================================
 export const SUPABASE_URL: string = "https://xivokswlegxetxgovhdw.supabase.co";
+/** Clave pública de las notificaciones (VAPID). Vacía = la página no ofrece avisos. */
+export const VAPID_PUBLICA: string = '';
+
 export const SUPABASE_KEY: string = "sb_publishable_iMN9hA3fCwQKXOe6Pp5rIA__uoCp2_K";
 
 // Detectar si las constantes ya fueron configuradas por el usuario
@@ -207,11 +210,22 @@ export async function marcarEntregaGps(
   lat: number | null = null,
   lon: number | null = null
 ): Promise<boolean> {
+  return (await marcarEntregaDetalle(codigo, id, estado, motivo, lat, lon)) === 'ok';
+}
+
+/** 'ok' = quedó; 'rechazada' = la base dijo que no (la salida ya se cerró); 'sin_red' = no se pudo hablar con la base. */
+export async function marcarEntregaDetalle(
+  codigo: string,
+  id: string | number,
+  estado: EstadoEntrega,
+  motivo: string | null = null,
+  lat: number | null = null,
+  lon: number | null = null
+): Promise<'ok' | 'rechazada' | 'sin_red'> {
   const client = getSupabaseClient();
   if (!client) {
-    return false;
+    return 'sin_red';
   }
-
   try {
     const { data, error } = await client.rpc('marcar_entrega_gps', {
       p_codigo: codigo,
@@ -221,18 +235,17 @@ export async function marcarEntregaGps(
       p_lat: lat,
       p_lon: lon,
     });
-
     if (error) {
       console.error('Error en supabase.rpc marcar_entrega_gps:', error);
-      return false;
+      return 'sin_red';
     }
-
-    return data === true;
+    return data === true ? 'ok' : 'rechazada';
   } catch (err) {
     console.error('Fallo llamando a marcar_entrega_gps:', err);
-    return false;
+    return 'sin_red';
   }
 }
+
 
 // -------------------------------------------------------------
 // Función RPC: ver_mensajes
@@ -585,3 +598,29 @@ export async function corregirUbicacion(
   }
 }
 
+
+// -------------------------------------------------------------
+// Función RPC: guardar_suscripcion (avisos aunque la app esté cerrada)
+// -------------------------------------------------------------
+export async function guardarSuscripcion(
+  enlace: string,
+  dispositivo: string,
+  endpoint: string,
+  p256dh: string,
+  auth: string
+): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) return false;
+  const { data, error } = await client.rpc('guardar_suscripcion', {
+    p_enlace: enlace,
+    p_dispositivo: dispositivo,
+    p_endpoint: endpoint,
+    p_p256dh: p256dh,
+    p_auth: auth,
+  });
+  if (error) {
+    console.error('Error en supabase.rpc guardar_suscripcion:', error);
+    return false;
+  }
+  return data === true;
+}
