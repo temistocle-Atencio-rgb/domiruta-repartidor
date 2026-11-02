@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
+  <title>Parada</title>
+  <path d="M24 2C12.4 2 3 11.2 3 22.6c0 14.6 17.4 32.3 19.4 34.3a2.3 2.3 0 0 0 3.2 0C27.6 54.9 45 37.2 45 22.6 45 11.2 35.6 2 24 2Z" fill="#005198" stroke="#FFFFFF" stroke-width="2.5"/>
+  <text x="24" y="29.5" text-anchor="middle" font-family="Poppins, Inter, sans-serif" font-weight="700" font-size="19" fill="#FFFFFF">1</text>
+</svg>

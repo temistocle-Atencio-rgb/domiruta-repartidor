@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
+  <title>Tienda</title>
+  <path d="M24 2C12.4 2 3 11.2 3 22.6c0 14.6 17.4 32.3 19.4 34.3a2.3 2.3 0 0 0 3.2 0C27.6 54.9 45 37.2 45 22.6 45 11.2 35.6 2 24 2Z" fill="#003A73" stroke="#FFFFFF" stroke-width="2.5"/>
+  <circle cx="24" cy="22.5" r="14.5" fill="#FFFFFF"/>
+  <g transform="translate(15.3 12.5) scale(0.067)">
+    <polygon fill="#F28C1B" points="0,75 129.9,0 259.8,75 129.9,150"/>
+    <polygon fill="#005198" points="0,75 129.9,150 129.9,300 0,225"/>
+    <polygon fill="#003A73" points="129.9,150 259.8,75 259.8,225 129.9,300"/>
+  </g>
+</svg>
