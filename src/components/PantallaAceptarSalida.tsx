@@ -20,6 +20,7 @@ interface PantallaAceptarSalidaProps {
   onRechazar: (motivo: string) => Promise<void>;
   onAbrirMensajes: () => void;
   mensajesNuevos: number;
+  onVolverAMisSalidas?: () => void;
 }
 
 const MOTIVOS_RECHAZO = [
@@ -44,6 +45,7 @@ export const PantallaAceptarSalida: React.FC<PantallaAceptarSalidaProps> = ({
   onRechazar,
   onAbrirMensajes,
   mensajesNuevos,
+  onVolverAMisSalidas,
 }) => {
   const [hojaRechazoAbierta, setHojaRechazoAbierta] = useState(false);
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<string>('Estoy ocupado');
@@ -127,7 +129,17 @@ export const PantallaAceptarSalida: React.FC<PantallaAceptarSalidaProps> = ({
     <div className="min-h-screen bg-[#F2F4F7] flex flex-col">
       {/* Barra superior en azul profundo #003A73 con nombre de la tienda */}
       <header className="bg-[#003A73] text-white px-4 py-2.5 flex items-center justify-between shadow-md z-10 flex-shrink-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {onVolverAMisSalidas && (
+            <button
+              type="button"
+              onClick={onVolverAMisSalidas}
+              className="min-h-[40px] px-2 py-1 flex items-center text-white/90 hover:text-white font-poppins text-xs font-medium rounded-[5px] hover:bg-white/10 transition-colors cursor-pointer select-none flex-shrink-0 mr-1"
+              title="Volver a Mis salidas"
+            >
+              ‹ Mis salidas
+            </button>
+          )}
           {/* Cubo isométrico oficial versión blanca */}
           <svg
             className="w-5 h-6 flex-shrink-0"
@@ -140,7 +152,7 @@ export const PantallaAceptarSalida: React.FC<PantallaAceptarSalidaProps> = ({
             <polygon fill="#FFFFFF" fillOpacity="0.8" points="0,75 129.9,150 129.9,300 0,225" />
             <polygon fill="#FFFFFF" fillOpacity="0.6" points="129.9,150 259.8,75 259.8,225 129.9,300" />
           </svg>
-          <span className="font-poppins font-bold text-base text-white truncate max-w-[200px]">
+          <span className="font-poppins font-bold text-base text-white truncate max-w-[180px]">
             {nombreTienda}
           </span>
         </div>

@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Parada, Mensaje, InfoSalida, RutaSalida, EstadoEntrega, PedidoCliente, RespuestaPedidoCodigo } from './types.ts';
+import { Parada, Mensaje, InfoSalida, RutaSalida, EstadoEntrega, PedidoCliente, RespuestaPedidoCodigo, RespuestaMisSalidas } from './types.ts';
 
 // ============================================================
 // CONSTANTES DE CONFIGURACIÓN DE SUPABASE
@@ -429,3 +429,97 @@ export function formatearHoraEntrega(fechaIso: string | null): string {
     return '';
   }
 }
+
+// -------------------------------------------------------------
+// Función RPC: mis_salidas
+// -------------------------------------------------------------
+export async function misSalidas(
+  enlace: string,
+  dispositivo: string
+): Promise<RespuestaMisSalidas | null> {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('La página no está configurada. Avísale a la tienda.');
+  }
+
+  try {
+    const { data, error } = await client.rpc('mis_salidas', {
+      p_enlace: enlace,
+      p_dispositivo: dispositivo,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc mis_salidas:', error);
+      throw error;
+    }
+
+    if (!data) return null;
+    if (Array.isArray(data)) {
+      if (data.length === 0) return null;
+      return data[0] as RespuestaMisSalidas;
+    }
+    return data as RespuestaMisSalidas;
+  } catch (err) {
+    console.error('Fallo llamando a Supabase RPC mis_salidas:', err);
+    throw err;
+  }
+}
+
+// -------------------------------------------------------------
+// Función RPC: confirmar_dispositivo
+// -------------------------------------------------------------
+export async function confirmarDispositivo(
+  enlace: string,
+  dispositivo: string
+): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) return false;
+
+  try {
+    const { data, error } = await client.rpc('confirmar_dispositivo', {
+      p_enlace: enlace,
+      p_dispositivo: dispositivo,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc confirmar_dispositivo:', error);
+      return false;
+    }
+
+    return Boolean(data);
+  } catch (err) {
+    console.error('Fallo llamando a Supabase RPC confirmar_dispositivo:', err);
+    return false;
+  }
+}
+
+// -------------------------------------------------------------
+// Función RPC: cambiar_disponible
+// -------------------------------------------------------------
+export async function cambiarDisponible(
+  enlace: string,
+  dispositivo: string,
+  disponible: boolean
+): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) return false;
+
+  try {
+    const { data, error } = await client.rpc('cambiar_disponible', {
+      p_enlace: enlace,
+      p_dispositivo: dispositivo,
+      p_disponible: disponible,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc cambiar_disponible:', error);
+      return false;
+    }
+
+    return Boolean(data);
+  } catch (err) {
+    console.error('Fallo llamando a Supabase RPC cambiar_disponible:', err);
+    return false;
+  }
+}
+

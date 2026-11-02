@@ -12,6 +12,7 @@ interface HeaderProps {
   onAbrirMensajes: () => void;
   ubicacionActiva: boolean;
   onAlternarUbicacion: () => void;
+  onVolverAMisSalidas?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onAbrirMensajes,
   ubicacionActiva,
   onAlternarUbicacion,
+  onVolverAMisSalidas,
 }) => {
   const nombreParaMostrar =
     tiendaNombre && tiendaNombre.trim().length > 0
@@ -34,7 +36,17 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="bg-[#003A73] text-white pt-2.5 pb-3 px-4 sticky top-0 z-30 shadow-md">
       {/* Fila 1: Logo, Nombre de la tienda y Acciones (Mensajes, Recargar) */}
       <div className="flex items-center justify-between gap-2 border-b border-white/15 pb-2.5 mb-2">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {onVolverAMisSalidas && (
+            <button
+              type="button"
+              onClick={onVolverAMisSalidas}
+              className="min-h-[40px] px-2 py-1 flex items-center text-white/90 hover:text-white font-poppins text-xs font-medium rounded-[5px] hover:bg-white/10 transition-colors cursor-pointer select-none flex-shrink-0"
+              title="Volver a Mis salidas"
+            >
+              ‹ Mis salidas
+            </button>
+          )}
           {/* Isotipo: Cubo isométrico versión blanca */}
           <svg
             className="w-5 h-6 flex-shrink-0"

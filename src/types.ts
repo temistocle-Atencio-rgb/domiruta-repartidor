@@ -75,3 +75,27 @@ export type RespuestaPedidoCodigo =
   | { tipo: 'exito'; data: PedidoCliente }
   | { tipo: 'espera' }
   | { tipo: 'no_encontrado' };
+
+export interface SalidaResumen {
+  codigo: string;
+  tienda?: string;
+  estado?: 'asignada' | 'en_curso' | 'terminada' | string;
+  aceptada?: boolean;
+  rechazada?: boolean;
+  entregas_total?: number;
+  entregas_restantes?: number;
+  entregadas?: number;
+  no_entregadas?: number;
+  total_cobrar?: number;
+  plata_cobrada?: number;
+  hora?: string;
+  creada?: string;
+  terminada_en?: string;
+}
+
+export interface RespuestaMisSalidas {
+  nombre: string;
+  disponible?: boolean;
+  otro_dispositivo?: boolean;
+  salidas?: SalidaResumen[];
+}

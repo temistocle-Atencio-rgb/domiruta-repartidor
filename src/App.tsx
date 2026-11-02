@@ -27,6 +27,12 @@ import { PantallaPermisoGps } from './components/PantallaPermisoGps.tsx';
 import { VisorFoto } from './components/VisorFoto.tsx';
 import { PantallaCliente } from './components/PantallaCliente.tsx';
 import { PantallaConsultarPedido } from './components/PantallaConsultarPedido.tsx';
+import { PantallaMisSalidas } from './components/PantallaMisSalidas.tsx';
+import {
+  obtenerIdDispositivo,
+  obtenerEnlaceGuardado,
+  guardarEnlace,
+} from './utils/dispositivo.ts';
 import { PedidoCliente } from './types.ts';
 import { AlertTriangle, RefreshCw, Clock, ChevronDown, ChevronUp, AlertCircle, Check } from 'lucide-react';
 
@@ -59,23 +65,96 @@ function safeSetStorage(key: string, value: string): void {
 }
 
 export default function App() {
-  // 1. Detección de parámetros de la URL
-  const { codigo, esCliente, enlaceCliente, esEtapaSiguiente } = useMemo(() => {
+  // Identificador único de este dispositivo móvil (32 caracteres alfanuméricos)
+  const dispositivoId = useMemo(() => obtenerIdDispositivo(), []);
+
+  // 1. Detección y manejo reactivo de parámetros de la URL
+  const [paramsState, setParamsState] = useState(() => {
     if (typeof window === 'undefined') {
-      return { codigo: null, esCliente: false, enlaceCliente: null, esEtapaSiguiente: false };
+      return {
+        codigo: null,
+        esCliente: false,
+        enlaceCliente: null,
+        enlaceRepartidor: null,
+      };
     }
     const params = new URLSearchParams(window.location.search);
-    const siguiente = params.has('r');
+    const paramR = params.get('r')?.trim() || null;
     const esP = params.has('p');
     const paramP = params.get('p')?.trim() || null;
     const paramS = params.get('s')?.trim() || null;
+
+    if (paramR) {
+      guardarEnlace(paramR);
+    }
+    const enlaceGuardado = obtenerEnlaceGuardado();
+    const enlaceRepartidor = paramR || enlaceGuardado;
+
     return {
       codigo: paramS,
       esCliente: esP,
       enlaceCliente: paramP,
-      esEtapaSiguiente: siguiente,
+      enlaceRepartidor,
     };
+  });
+
+  const { codigo, esCliente, enlaceCliente, enlaceRepartidor } = paramsState;
+
+  // Escuchar popstate (atrás / adelante en el historial del celular)
+  useEffect(() => {
+    const onPopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const paramR = params.get('r')?.trim() || null;
+      const esP = params.has('p');
+      const paramP = params.get('p')?.trim() || null;
+      const paramS = params.get('s')?.trim() || null;
+
+      if (paramR) {
+        guardarEnlace(paramR);
+      }
+      const enlaceGuardado = obtenerEnlaceGuardado();
+      const enlaceRepartidor = paramR || enlaceGuardado;
+
+      setParamsState({
+        codigo: paramS,
+        esCliente: esP,
+        enlaceCliente: paramP,
+        enlaceRepartidor,
+      });
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
+
+  // Navegar a la pantalla de salida seleccionada
+  const handleAbrirSalida = useCallback((codigoSalida: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('s', codigoSalida);
+    url.searchParams.delete('r');
+    window.history.pushState({}, '', url.toString());
+    setParamsState((prev) => ({
+      ...prev,
+      codigo: codigoSalida,
+    }));
+  }, []);
+
+  // Volver a la pantalla de "Mis salidas"
+  const handleVolverAMisSalidas = useCallback(() => {
+    const enlace = obtenerEnlaceGuardado();
+    const url = new URL(window.location.href);
+    url.searchParams.delete('s');
+    if (enlace) {
+      url.searchParams.set('r', enlace);
+    }
+    window.history.pushState({}, '', url.toString());
+    setParamsState((prev) => ({
+      ...prev,
+      codigo: null,
+      enlaceRepartidor: enlace,
+    }));
+  }, []);
+
 
   // Estado para la pantalla de consulta de pedidos (cuando el cliente entra con ?p sin enlace)
   const [pedidoEncontrado, setPedidoEncontrado] = useState<PedidoCliente | null>(null);
@@ -897,27 +976,6 @@ export default function App() {
   }
 
   // ========================================================
-  // CASO A2: Parámetro ?r= (etapas siguientes)
-  // ========================================================
-  if (esEtapaSiguiente) {
-    return (
-      <main className="min-h-screen bg-[#F2F4F7] flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-white rounded-[5px] border border-[#E3E7EC] shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-6 text-center space-y-3">
-          <div className="w-12 h-12 rounded-[5px] bg-[#005198]/10 text-[#005198] flex items-center justify-center mx-auto">
-            <Clock className="w-6 h-6 text-[#005198]" strokeWidth={2} />
-          </div>
-          <h1 className="font-poppins font-bold text-[19px] text-[#003A73] m-0">
-            Esta parte llega pronto
-          </h1>
-          <p className="font-inter text-[14px] text-[#5B6670] m-0">
-            Esta sección estará disponible en las siguientes etapas.
-          </p>
-        </div>
-      </main>
-    );
-  }
-
-  // ========================================================
   // CASO B: Supabase no está configurado
   // ========================================================
   if (!isSupabaseConfigured()) {
@@ -933,15 +991,43 @@ export default function App() {
   }
 
   // ========================================================
-  // CASO C: Enlace sin parámetro `s`
+  // CASO C: Enlace sin parámetro `s` (o acceso directo a Mis salidas / PWA)
   // ========================================================
   if (!codigo) {
+    if (enlaceRepartidor) {
+      return (
+        <PantallaMisSalidas
+          enlace={enlaceRepartidor}
+          dispositivo={dispositivoId}
+          onAbrirSalida={handleAbrirSalida}
+        />
+      );
+    }
+
     return (
       <main className="min-h-screen bg-[#F2F4F7] flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-white rounded-[5px] border border-[#E3E7EC] shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-6 text-center">
-          <p className="font-inter text-[15px] text-[#1F2933] leading-relaxed m-0 font-medium">
-            Este enlace no es válido. Pídele a la tienda que te lo envíe otra vez.
-          </p>
+        <div className="w-full max-w-sm bg-white rounded-[5px] border border-[#E3E7EC] shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-6 text-center space-y-4">
+          <div className="flex justify-center">
+            <svg
+              className="w-12 h-14"
+              viewBox="0 0 259.8 300"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <polygon fill="#F28C1B" points="0,75 129.9,0 259.8,75 129.9,150" />
+              <polygon fill="#005198" points="0,75 129.9,150 129.9,300 0,225" />
+              <polygon fill="#003A73" points="129.9,150 259.8,75 259.8,225 129.9,300" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="font-poppins font-bold text-[19px] text-[#003A73] leading-tight m-0">
+              DomiRuta Repartidor
+            </h1>
+            <p className="font-inter text-[14.5px] text-[#5B6670] mt-2 mb-0 leading-relaxed">
+              Abre el enlace que te mandó la tienda por WhatsApp.
+            </p>
+          </div>
         </div>
       </main>
     );
@@ -1030,6 +1116,7 @@ export default function App() {
           onRechazar={handleRechazarSalida}
           onAbrirMensajes={handleAbrirMensajes}
           mensajesNuevos={mensajesNuevosNoLeidos}
+          onVolverAMisSalidas={obtenerEnlaceGuardado() ? handleVolverAMisSalidas : undefined}
         />
 
         <HojaMensajes
@@ -1106,6 +1193,7 @@ export default function App() {
         onAbrirMensajes={handleAbrirMensajes}
         ubicacionActiva={ubicacionActiva && !todasTerminadas}
         onAlternarUbicacion={handleAlternarUbicacion}
+        onVolverAMisSalidas={obtenerEnlaceGuardado() ? handleVolverAMisSalidas : undefined}
       />
 
       {/* Barra roja fija arriba del mapa si se pierde GPS o internet */}
