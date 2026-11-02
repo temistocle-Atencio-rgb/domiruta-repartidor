@@ -97,28 +97,21 @@ export async function responderSalida(
   acepta: boolean,
   motivo: string = ''
 ): Promise<boolean> {
+  // false = ya venció o la tomó otro; si falla el internet se lanza un error (no es lo mismo)
   const client = getSupabaseClient();
   if (!client) {
-    return false;
+    throw new Error('La página no está configurada. Avísale a la tienda.');
   }
-
-  try {
-    const { data, error } = await client.rpc('responder_salida', {
-      p_codigo: codigo,
-      p_acepta: acepta,
-      p_motivo: motivo,
-    });
-
-    if (error) {
-      console.error('Error en supabase.rpc responder_salida:', error);
-      return false;
-    }
-
-    return data === true;
-  } catch (err) {
-    console.error('Fallo llamando a Supabase RPC responder_salida:', err);
-    return false;
+  const { data, error } = await client.rpc('responder_salida', {
+    p_codigo: codigo,
+    p_acepta: acepta,
+    p_motivo: motivo,
+  });
+  if (error) {
+    console.error('Error en supabase.rpc responder_salida:', error);
+    throw error;
   }
+  return data === true;
 }
 
 // -------------------------------------------------------------
@@ -224,7 +217,7 @@ export async function marcarEntregaGps(
       p_codigo: codigo,
       p_id: id,
       p_estado: estado,
-      p_motivo: motivo,
+      p_motivo: motivo ?? '',
       p_lat: lat,
       p_lon: lon,
     });

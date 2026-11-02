@@ -156,3 +156,84 @@ export function validarLecturaGps(
 
   return true;
 }
+
+/** Dónde cae un punto sobre la ruta: índice del tramo, fracción dentro del tramo y distancia a la línea. */
+function ubicarEnRuta(p: [number, number], ruta: [number, number][]): { i: number; t: number; distM: number } {
+  let mejor = { i: 0, t: 0, distM: Infinity };
+  for (let i = 0; i < ruta.length - 1; i++) {
+    const a = ruta[i];
+    const b = ruta[i + 1];
+    const abLat = b[0] - a[0];
+    const abLon = b[1] - a[1];
+    const l2 = abLat * abLat + abLon * abLon;
+    const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * abLat + (p[1] - a[1]) * abLon) / l2));
+    const q: [number, number] = [a[0] + t * abLat, a[1] + t * abLon];
+    const d = distanciaHaversine(p[0], p[1], q[0], q[1]);
+    if (d < mejor.distM) {
+      mejor = { i, t, distM: d };
+    }
+  }
+  return mejor;
+}
+
+/**
+ * El camino que debe recorrer la moto para ir de `desde` a `hasta`: si los dos están sobre la ruta y
+ * `hasta` va adelante (menos de 400 m), sigue las esquinas de la ruta en vez de cortar por encima de
+ * las casas. Si no, va derecho (son puntos ya pegados a la calle y muy cercanos).
+ */
+export function caminoPorRuta(
+  desde: [number, number],
+  hasta: [number, number],
+  ruta: [number, number][] | null | undefined
+): [number, number][] {
+  if (!ruta || ruta.length < 2) {
+    return [hasta];
+  }
+  const a = ubicarEnRuta(desde, ruta);
+  const b = ubicarEnRuta(hasta, ruta);
+  const adelante = b.i > a.i || (b.i === a.i && b.t >= a.t);
+  if (a.distM > 5 || b.distM > 5 || !adelante || b.i - a.i > 60) {
+    return [hasta];
+  }
+  const camino: [number, number][] = [];
+  let largo = 0;
+  let ultimo = desde;
+  for (let k = a.i + 1; k <= b.i; k++) {
+    largo += distanciaHaversine(ultimo[0], ultimo[1], ruta[k][0], ruta[k][1]);
+    ultimo = ruta[k];
+    camino.push(ruta[k]);
+  }
+  largo += distanciaHaversine(ultimo[0], ultimo[1], hasta[0], hasta[1]);
+  camino.push(hasta);
+  return largo <= 400 ? camino : [hasta];
+}
+
+/**
+ * Pega la lectura a la ruta buscando primero cerca de donde iba (la ruta puede pasar dos veces por
+ * la misma calle o muy cerca de sí misma). Devuelve null si queda a más de 40 m de la ruta.
+ */
+export function pegarALaRutaDesde(
+  p: [number, number],
+  ruta: [number, number][] | null | undefined,
+  indicePrevio: number
+): { punto: [number, number]; indice: number } | null {
+  if (!ruta || ruta.length < 2) {
+    return null;
+  }
+  const buscar = (desde: number, hasta: number) => {
+    let mejor = { punto: ruta[0] as [number, number], indice: -1, distM: Infinity };
+    for (let i = Math.max(0, desde); i < Math.min(ruta.length - 1, hasta); i++) {
+      const q = proyectarPuntoEnSegmento(p, ruta[i], ruta[i + 1]);
+      const d = distanciaHaversine(p[0], p[1], q[0], q[1]);
+      if (d < mejor.distM) {
+        mejor = { punto: q, indice: i, distM: d };
+      }
+    }
+    return mejor;
+  };
+  let r = indicePrevio >= 0 ? buscar(indicePrevio - 3, indicePrevio + 40) : { distM: Infinity, punto: ruta[0], indice: -1 };
+  if (r.distM > 40) {
+    r = buscar(0, ruta.length); // se adelantó mucho o recién empieza
+  }
+  return r.distM <= 40 ? { punto: r.punto as [number, number], indice: r.indice } : null;
+}

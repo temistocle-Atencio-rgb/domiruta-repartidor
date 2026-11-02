@@ -1,18 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 48" width="36" height="48">
-  <!-- Sombra suave en la base -->
-  <ellipse cx="18" cy="46" rx="9" ry="2" fill="rgba(31,41,51,0.25)" />
-  
-  <!-- Pin en Azul profundo #003A73 -->
-  <path d="M18 2 C8.6 2 1 9.6 1 19 C1 31 18 46 18 46 C18 46 35 31 35 19 C35 9.6 27.4 2 18 2 Z" fill="#003A73" stroke="#FFFFFF" stroke-width="2" />
-  
-  <!-- Círculo interior blanco -->
-  <circle cx="18" cy="18" r="11" fill="#FFFFFF" />
-
-  <!-- Ícono de Tienda / Tiendita de barrio con toldo naranja -->
-  <!-- Techo / Toldo -->
-  <path d="M11 15 L25 15 L23 11 L13 11 Z" fill="#F28C1B" />
-  <path d="M11 15 Q12 17 13 15 Q14 17 15 15 Q16 17 17 15 Q18 17 19 15 Q20 17 21 15 Q22 17 23 15 Q24 17 25 15" fill="#003A73" />
-  <!-- Puerta y ventana -->
-  <rect x="13" y="17" width="10" height="6" fill="#003A73" />
-  <rect x="16.5" y="19" width="3" height="4" fill="#FFFFFF" />
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
+  <title>Tienda</title>
+  <path d="M24 2C12.4 2 3 11.2 3 22.6c0 14.6 17.4 32.3 19.4 34.3a2.3 2.3 0 0 0 3.2 0C27.6 54.9 45 37.2 45 22.6 45 11.2 35.6 2 24 2Z" fill="#003A73" stroke="#FFFFFF" stroke-width="2.5"/>
+  <circle cx="24" cy="22.5" r="14.5" fill="#FFFFFF"/>
+  <g transform="translate(15.3 12.5) scale(0.067)">
+    <polygon fill="#F28C1B" points="0,75 129.9,0 259.8,75 129.9,150"/>
+    <polygon fill="#005198" points="0,75 129.9,150 129.9,300 0,225"/>
+    <polygon fill="#003A73" points="129.9,150 259.8,75 259.8,225 129.9,300"/>
+  </g>
 </svg>

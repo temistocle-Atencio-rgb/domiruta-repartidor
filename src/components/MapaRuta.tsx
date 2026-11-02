@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { Parada, RutaSalida } from '../types.ts';
-import { pegarALaCalle } from '../utils/geo.ts';
+import { pegarALaCalle, pegarALaRutaDesde, caminoPorRuta, distanciaHaversine } from '../utils/geo.ts';
 import { Navigation } from 'lucide-react';
 
 interface MapaRutaProps {
@@ -13,6 +13,21 @@ interface MapaRutaProps {
   mostrarMoto?: boolean;
   className?: string;
   onCentrarMotoClick?: () => void;
+}
+
+/** El popup se arma con texto (los nombres los escriben los clientes: nunca como HTML). */
+function popupTexto(titulo: string, detalle: string): HTMLElement {
+  const caja = document.createElement('div');
+  caja.style.fontFamily = "'Inter', sans-serif";
+  caja.style.fontSize = '13px';
+  const t = document.createElement('strong');
+  t.style.fontFamily = "'Poppins', sans-serif";
+  t.style.color = '#003A73';
+  t.textContent = titulo;
+  caja.appendChild(t);
+  caja.appendChild(document.createElement('br'));
+  caja.appendChild(document.createTextNode(detalle ?? ''));
+  return caja;
 }
 
 export const MapaRuta: React.FC<MapaRutaProps> = ({
@@ -45,6 +60,10 @@ export const MapaRuta: React.FC<MapaRutaProps> = ({
   const posicionObjetivoRef = useRef<[number, number] | null>(null);
   const animacionRafIdRef = useRef<number | null>(null);
   const ultimoLonRef = useRef<number | null>(null);
+  const ajustadoRef = useRef<boolean>(false);
+  const indiceRutaRef = useRef<number>(-1); // por qué tramo de la ruta iba
+  const caminoRef = useRef<[number, number][]>([]); // puntos que le faltan por recorrer a la moto
+  const velocidadRef = useRef<number>(0); // metros por milisegundo para llegar en ~1,2 s
 
   // 1. Inicializar mapa Leaflet con OpenStreetMap
   useEffect(() => {
@@ -117,9 +136,9 @@ export const MapaRuta: React.FC<MapaRutaProps> = ({
     if (typeof tLat === 'number' && typeof tLon === 'number') {
       const tiendaIcon = L.icon({
         iconUrl: './iconos/tienda.svg',
-        iconSize: [36, 48],
-        iconAnchor: [18, 48],
-        popupAnchor: [0, -48],
+        iconSize: [38, 48],
+        iconAnchor: [19, 47],
+        popupAnchor: [0, -46],
       });
 
       const mTienda = L.marker([tLat, tLon], { icon: tiendaIcon })
@@ -139,43 +158,38 @@ export const MapaRuta: React.FC<MapaRutaProps> = ({
       if (parada.estado === 'entregado') {
         icon = L.icon({
           iconUrl: './iconos/cliente-entregado.svg',
-          iconSize: [36, 48],
-          iconAnchor: [18, 48],
-          popupAnchor: [0, -48],
+          iconSize: [38, 48],
+          iconAnchor: [19, 47],
+          popupAnchor: [0, -46],
         });
       } else if (parada.estado === 'no_entregado') {
         icon = L.icon({
           iconUrl: './iconos/cliente-no-entregado.svg',
-          iconSize: [36, 48],
-          iconAnchor: [18, 48],
-          popupAnchor: [0, -48],
+          iconSize: [38, 48],
+          iconAnchor: [19, 47],
+          popupAnchor: [0, -46],
         });
       } else {
         // Parada pendiente numerada
         icon = L.divIcon({
           className: 'domiruta-pin-numero',
           html: `
-            <div style="position: relative; width: 36px; height: 48px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.18));">
-              <img src="./iconos/cliente-numero.svg" style="width: 36px; height: 48px; display: block;" alt="" />
-              <span style="position: absolute; top: 8px; left: 0; width: 36px; text-align: center; color: #FFFFFF; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 13px; line-height: 1; pointer-events: none;">
+            <div style="position: relative; width: 38px; height: 48px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.18));">
+              <img src="./iconos/cliente-numero.svg" style="width: 38px; height: 48px; display: block;" alt="" />
+              <span style="position: absolute; top: 10px; left: 0; width: 38px; text-align: center; color: #FFFFFF; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15px; line-height: 1; pointer-events: none;">
                 ${parada.orden}
               </span>
             </div>
           `,
-          iconSize: [36, 48],
-          iconAnchor: [18, 48],
-          popupAnchor: [0, -48],
+          iconSize: [38, 48],
+          iconAnchor: [19, 47],
+          popupAnchor: [0, -46],
         });
       }
 
       const m = L.marker([parada.lat, parada.lon], { icon })
         .addTo(map)
-        .bindPopup(
-          `<div style="font-family:'Inter',sans-serif; font-size:13px;">
-            <strong style="font-family:'Poppins',sans-serif; color:#003A73;">#${parada.orden} · ${parada.nombre}</strong><br/>
-            ${parada.direccion}
-          </div>`
-        );
+        .bindPopup(popupTexto(`#${parada.orden} · ${parada.nombre}`, parada.direccion));
 
       marcadoresParadasRef.current.push(m);
       bounds.extend([parada.lat, parada.lon]);
@@ -186,11 +200,12 @@ export const MapaRuta: React.FC<MapaRutaProps> = ({
       rutaSalidaData.ruta.forEach((pt) => bounds.extend(pt));
     }
 
-    // Ajustar zoom para que se vea todo si no estamos en modo moto en vivo activa
-    if (bounds.isValid() && (!mostrarMoto || !posicionActualGps)) {
+    // Ajustar el zoom para que se vea todo una sola vez (si no, cada lectura del GPS movería el mapa)
+    if (bounds.isValid() && !ajustadoRef.current && !mostrarMoto) {
       map.fitBounds(bounds, { padding: [32, 32], maxZoom: 16 });
+      ajustadoRef.current = true;
     }
-  }, [paradas, tiendaLat, tiendaLon, rutaSalidaData, mostrarMoto, posicionActualGps]);
+  }, [paradas, tiendaLat, tiendaLon, rutaSalidaData, mostrarMoto]);
 
   // 4. Lógica de la Moto en vivo: Pegar a la calle, Orientación este/oeste, Animación suave
   useEffect(() => {
@@ -204,11 +219,12 @@ export const MapaRuta: React.FC<MapaRutaProps> = ({
     }
 
     // Pegar la lectura GPS a la calle o ruta
-    const puntoPegado = pegarALaCalle(
-      [posicionActualGps.lat, posicionActualGps.lon],
-      rutaSalidaData?.ruta,
-      rutaSalidaData?.calles
-    );
+    const lectura: [number, number] = [posicionActualGps.lat, posicionActualGps.lon];
+    const enRuta = pegarALaRutaDesde(lectura, rutaSalidaData?.ruta, indiceRutaRef.current);
+    if (enRuta) {
+      indiceRutaRef.current = enRuta.indice;
+    }
+    const puntoPegado = enRuta ? enRuta.punto : pegarALaCalle(lectura, null, rutaSalidaData?.calles);
 
     // Detección de movimiento este/oeste (solo si el cambio es claro para no temblar en calles norte-sur)
     if (ultimoLonRef.current !== null) {
@@ -264,38 +280,50 @@ export const MapaRuta: React.FC<MapaRutaProps> = ({
       map.setView(puntoPegado, 16, { animate: true });
     } else {
       marcadorMotoRef.current.setIcon(iconoMotoDiv);
+      // si la moto se va saliendo de lo que se ve, el mapa la sigue
+      if (!map.getBounds().pad(-0.2).contains(puntoPegado)) {
+        map.panTo(puntoPegado, { animate: true });
+      }
     }
 
-    // Animación suave de deslizamiento con requestAnimationFrame
+    // Animación suave: la moto recorre el camino por la ruta (sin cortar esquinas) en ~1,2 s
     if (animacionRafIdRef.current) {
       cancelAnimationFrame(animacionRafIdRef.current);
     }
+    const desdeAhora = posicionAnimadaRef.current ?? puntoPegado;
+    caminoRef.current = caminoPorRuta(desdeAhora, puntoPegado, rutaSalidaData?.ruta);
+    let largoTotal = 0;
+    let previo = desdeAhora;
+    for (const q of caminoRef.current) {
+      largoTotal += distanciaHaversine(previo[0], previo[1], q[0], q[1]);
+      previo = q;
+    }
+    velocidadRef.current = Math.max(largoTotal / 1200, 0.002);
+    let ultimoFrame = performance.now();
 
-    const animarDeslizamiento = () => {
-      if (!posicionAnimadaRef.current || !posicionObjetivoRef.current) return;
-
-      const [curLat, curLon] = posicionAnimadaRef.current;
-      const [tarLat, tarLon] = posicionObjetivoRef.current;
-
-      const dLat = tarLat - curLat;
-      const dLon = tarLon - curLon;
-
-      // Si ya está muy cerca, completar
-      if (Math.abs(dLat) < 0.000005 && Math.abs(dLon) < 0.000005) {
-        posicionAnimadaRef.current = [tarLat, tarLon];
-        marcadorMotoRef.current?.setLatLng([tarLat, tarLon]);
-        return;
+    const animarDeslizamiento = (ahora: number) => {
+      const dt = Math.min(100, ahora - ultimoFrame);
+      ultimoFrame = ahora;
+      let avance = velocidadRef.current * dt;
+      let actual = posicionAnimadaRef.current ?? puntoPegado;
+      while (avance > 0 && caminoRef.current.length > 0) {
+        const siguiente = caminoRef.current[0];
+        const d = distanciaHaversine(actual[0], actual[1], siguiente[0], siguiente[1]);
+        if (d <= avance) {
+          actual = siguiente;
+          avance -= d;
+          caminoRef.current.shift();
+        } else {
+          const f = avance / d;
+          actual = [actual[0] + (siguiente[0] - actual[0]) * f, actual[1] + (siguiente[1] - actual[1]) * f];
+          avance = 0;
+        }
       }
-
-      // Interpolación lineal con amortiguación suave (lerp)
-      const factorLerp = 0.08;
-      const nextLat = curLat + dLat * factorLerp;
-      const nextLon = curLon + dLon * factorLerp;
-
-      posicionAnimadaRef.current = [nextLat, nextLon];
-      marcadorMotoRef.current?.setLatLng([nextLat, nextLon]);
-
-      animacionRafIdRef.current = requestAnimationFrame(animarDeslizamiento);
+      posicionAnimadaRef.current = actual;
+      marcadorMotoRef.current?.setLatLng(actual);
+      if (caminoRef.current.length > 0) {
+        animacionRafIdRef.current = requestAnimationFrame(animarDeslizamiento);
+      }
     };
 
     animacionRafIdRef.current = requestAnimationFrame(animarDeslizamiento);

@@ -129,7 +129,7 @@ export default function App() {
 
   // Ubicación GPS en vivo
   const [ubicacionActiva, setUbicacionActiva] = useState<boolean>(() => {
-    const guardado = safeGetStorage('domiruta_ubicacion_activa');
+    const guardado = safeGetStorage('domiruta_ubicacion_activa_' + new URLSearchParams(window.location.search).get('s'));
     return guardado !== 'false'; // Activo por defecto
   });
   const [modalConfirmarPausaAbierto, setModalConfirmarPausaAbierto] = useState<boolean>(false);
@@ -142,6 +142,9 @@ export default function App() {
   const [gpsPerdido, setGpsPerdido] = useState<boolean>(false);
 
   // Referencias para seguimiento y filtrado GPS
+  const rechazosSeguidosRef = useRef(0);
+  const aceptandoRef = useRef(false);
+  const enviandoRef = useRef(false);
   const ultimaLecturaGpsRef = useRef<{
     lat: number;
     lon: number;
@@ -457,8 +460,13 @@ export default function App() {
         );
 
         if (!esValida) {
-          return;
+          // si el GPS insiste 3 veces seguidas en el sitio nuevo, la mala era la lectura vieja
+          rechazosSeguidosRef.current += 1;
+          if (rechazosSeguidosRef.current < 3 || precision > 50) {
+            return;
+          }
         }
+        rechazosSeguidosRef.current = 0;
 
         const nuevaLectura = {
           lat,
@@ -500,6 +508,7 @@ export default function App() {
       return;
     }
 
+    ultimoGpsTimestampRef.current = Date.now(); // recién empieza (o reanudó): todavía no está perdido
     const intervaloGpsCheck = setInterval(() => {
       const tiempoSinGps = Date.now() - ultimoGpsTimestampRef.current;
       if (tiempoSinGps > 15000) {
@@ -516,32 +525,13 @@ export default function App() {
 
     const intervaloEnvio = setInterval(async () => {
       const actual = ultimaLecturaGpsRef.current;
-      if (!actual) return;
+      // nada viejo (sin señal no se finge que sigue en vivo) y un envío a la vez (sin internet se demoran)
+      if (!actual || enviandoRef.current || Date.now() - actual.timestamp > 15000) return;
+      enviandoRef.current = true;
 
-      const cola = colaEnviosPendientesRef.current;
-
-      // Si hay lecturas en cola acumuladas por falta de red, reintentarlas en orden
-      if (cola.length > 0 && navigator.onLine) {
-        const copiaCola = [...cola];
-        colaEnviosPendientesRef.current = [];
-
-        for (const item of copiaCola) {
-          try {
-            await enviarPosicion(
-              codigo,
-              item.lat,
-              item.lon,
-              item.precision,
-              item.rumbo,
-              item.velocidad
-            );
-          } catch {
-            colaEnviosPendientesRef.current.push(item);
-            break;
-          }
-        }
-      }
-
+      // Las lecturas viejas no se reenvían: la base guarda una cada 4 s y moverían la moto hacia atrás.
+      // Basta con mandar la más reciente apenas vuelva el internet.
+      colaEnviosPendientesRef.current = [];
       // Enviar la posición más reciente
       try {
         const ok = await enviarPosicion(
@@ -571,6 +561,8 @@ export default function App() {
           rumbo: actual.rumbo,
           velocidad: actual.velocidad,
         });
+      } finally {
+        enviandoRef.current = false;
       }
     }, 5000);
 
@@ -581,7 +573,8 @@ export default function App() {
   // Pantalla 1 y 2: Aceptar / Rechazar Salida con validación de GPS
   // --------------------------------------------------------------------------
   const ejecutarAceptacionSalida = async () => {
-    if (!codigo) return;
+    if (!codigo || aceptandoRef.current) return; // un solo intento a la vez (doble toque o el aviso de cada 3 s)
+    aceptandoRef.current = true;
     setCargandoRespuestaSalida(true);
     setMensajeErrorAccion(null);
 
@@ -598,13 +591,14 @@ export default function App() {
     } catch {
       setMensajeErrorAccion('No se pudo aceptar la salida. Revisa el internet.');
     } finally {
+      aceptandoRef.current = false;
       setCargandoRespuestaSalida(false);
     }
   };
 
   // Al tocar "Acepto" en Pantalla 1: verificar si ya tiene GPS
   const handleAceptarClick = async () => {
-    if (!codigo || cargandoRespuestaSalida) return;
+    if (!codigo || cargandoRespuestaSalida || aceptandoRef.current) return;
 
     // Verificar si el navegador ya concedió el permiso de geolocalización
     if (typeof navigator !== 'undefined' && 'permissions' in navigator) {
@@ -676,10 +670,14 @@ export default function App() {
     setCargandoRespuestaSalida(true);
     setMensajeErrorAccion(null);
 
-    const exito = await responderSalida(codigo, false, motivo);
-    if (exito) {
-      setInfo((prev) => (prev ? { ...prev, aceptada: false, rechazada: true } : null));
-    } else {
+    try {
+      const exito = await responderSalida(codigo, false, motivo);
+      if (exito) {
+        setInfo((prev) => (prev ? { ...prev, aceptada: false, rechazada: true } : null));
+      } else {
+        setSalidaVencida(true); // ya venció o la tomó otro
+      }
+    } catch {
       setMensajeErrorAccion('No se pudo enviar el rechazo. Revisa el internet.');
     }
     setCargandoRespuestaSalida(false);
@@ -694,20 +692,30 @@ export default function App() {
       setModalConfirmarPausaAbierto(true);
     } else {
       // Reanudar inmediatamente
-      setUbicacionActiva(true);
-      safeSetStorage('domiruta_ubicacion_activa', 'true');
       if (codigo) {
-        pausarUbicacion(codigo, false);
+        pausarUbicacion(codigo, false).then((ok) => {
+          if (ok) {
+            setUbicacionActiva(true);
+            safeSetStorage('domiruta_ubicacion_activa_' + codigo, 'true');
+          } else {
+            setMensajeErrorAccion('No se pudo volver a compartir la ubicación. Revisa el internet e intenta otra vez.');
+          }
+        });
       }
     }
   };
 
   const handleConfirmarApagarUbicacion = () => {
     setModalConfirmarPausaAbierto(false);
-    setUbicacionActiva(false);
-    safeSetStorage('domiruta_ubicacion_activa', 'false');
     if (codigo) {
-      pausarUbicacion(codigo, true);
+      pausarUbicacion(codigo, true).then((ok) => {
+        if (ok) {
+          setUbicacionActiva(false);
+          safeSetStorage('domiruta_ubicacion_activa_' + codigo, 'false');
+        } else {
+          setMensajeErrorAccion('No se pudo pausar la ubicación. Revisa el internet e intenta otra vez.');
+        }
+      });
     }
   };
 

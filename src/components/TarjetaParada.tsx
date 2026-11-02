@@ -124,7 +124,7 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
               {parada.nombre}
             </h2>
             {esDestacada && (
-              <span className="text-[11px] font-poppins font-bold text-[#005198] bg-[#005198]/10 px-2 py-0.5 rounded-[3px] uppercase tracking-wide">
+              <span className="text-[11px] font-poppins font-bold text-[#005198] uppercase tracking-wide">
                 Siguiente
               </span>
             )}
@@ -183,7 +183,7 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
           {tieneTelefono ? (
             <a
               href={`tel:${parada.telefono}`}
-              className="min-h-[48px] px-2 bg-white hover:bg-[#F2F4F7] active:bg-[#E3E7EC] text-[#005198] border border-[#005198] rounded-[5px] font-poppins font-semibold text-[13px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none text-center"
+              className="min-h-[48px] px-2 bg-white hover:bg-[#F2F4F7] active:bg-[#E3E7EC] text-[#005198] border border-[#005198] rounded-[5px] font-poppins font-semibold text-[12px] leading-tight flex flex-col items-center justify-center gap-0.5 py-1 transition-colors cursor-pointer select-none text-center"
               aria-label={`Llamar a ${parada.nombre} al ${parada.telefono}`}
             >
               <Phone className="w-4 h-4 flex-shrink-0" strokeWidth={2} />
@@ -198,7 +198,7 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
               href={urlWhatsApp}
               target="_blank"
               rel="noopener noreferrer"
-              className="min-h-[48px] px-2 bg-white hover:bg-[#F2F4F7] active:bg-[#E3E7EC] text-[#1E7A44] border border-[#1E7A44] rounded-[5px] font-poppins font-semibold text-[13px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none text-center"
+              className="min-h-[48px] px-2 bg-white hover:bg-[#F2F4F7] active:bg-[#E3E7EC] text-[#1E7A44] border border-[#1E7A44] rounded-[5px] font-poppins font-semibold text-[12px] leading-tight flex flex-col items-center justify-center gap-0.5 py-1 transition-colors cursor-pointer select-none text-center"
               aria-label={`Escribir por WhatsApp a ${parada.nombre}`}
             >
               <MessageCircle className="w-4 h-4 flex-shrink-0" strokeWidth={2} />
@@ -213,7 +213,7 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
               href={urlComoLlegar}
               target="_blank"
               rel="noopener noreferrer"
-              className="min-h-[48px] px-2 bg-white hover:bg-[#F2F4F7] active:bg-[#E3E7EC] text-[#005198] border border-[#005198] rounded-[5px] font-poppins font-semibold text-[13px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none text-center"
+              className="min-h-[48px] px-2 bg-white hover:bg-[#F2F4F7] active:bg-[#E3E7EC] text-[#005198] border border-[#005198] rounded-[5px] font-poppins font-semibold text-[12px] leading-tight flex flex-col items-center justify-center gap-0.5 py-1 transition-colors cursor-pointer select-none text-center"
               aria-label={`Cómo llegar a ${parada.direccion}`}
             >
               <Navigation className="w-4 h-4 flex-shrink-0" strokeWidth={2} />
