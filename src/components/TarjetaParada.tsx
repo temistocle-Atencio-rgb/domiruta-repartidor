@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Parada } from '../types.ts';
 import { formatearPesos, subirFoto } from '../supabase.ts';
 import { comprimirFoto } from '../utils/image.ts';
-import { Phone, Navigation, RotateCcw, Check, XCircle, Camera, MessageCircle } from 'lucide-react';
+import { Phone, Navigation, RotateCcw, Check, XCircle, Camera } from 'lucide-react';
 
 interface TarjetaParadaProps {
   parada: Parada;
@@ -201,7 +201,7 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
               className="min-h-[48px] px-2 bg-white hover:bg-[#F2F4F7] active:bg-[#E3E7EC] text-[#1E7A44] border border-[#1E7A44] rounded-[5px] font-poppins font-semibold text-[12px] leading-tight flex flex-col items-center justify-center gap-0.5 py-1 transition-colors cursor-pointer select-none text-center"
               aria-label={`Escribir por WhatsApp a ${parada.nombre}`}
             >
-              <MessageCircle className="w-4 h-4 flex-shrink-0" strokeWidth={2} />
+              <img src="./iconos/whatsapp.svg" alt="" aria-hidden="true" className="w-5 h-5 flex-shrink-0" />
               <span>WhatsApp</span>
             </a>
           ) : (
