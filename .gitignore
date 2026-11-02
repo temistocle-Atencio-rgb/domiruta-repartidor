@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# archivos que sube AI Studio como referencia: no se publican
+public/assets/aistudio/
