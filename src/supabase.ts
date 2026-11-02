@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Parada, Mensaje, InfoSalida, RutaSalida, EstadoEntrega, PedidoCliente, RespuestaPedidoCodigo, RespuestaMisSalidas } from './types.ts';
+import { SalidaResumen, Parada, Mensaje, InfoSalida, RutaSalida, EstadoEntrega, PedidoCliente, RespuestaPedidoCodigo, RespuestaMisSalidas } from './types.ts';
 
 // ============================================================
 // CONSTANTES DE CONFIGURACIÓN DE SUPABASE
@@ -454,11 +454,32 @@ export async function misSalidas(
     }
 
     if (!data) return null;
-    if (Array.isArray(data)) {
-      if (data.length === 0) return null;
-      return data[0] as RespuestaMisSalidas;
-    }
-    return data as RespuestaMisSalidas;
+    const r = (Array.isArray(data) ? data[0] : data) as RespuestaMisSalidas & { salidas?: any[] };
+    if (!r) return null;
+    // mis_salidas devuelve: codigo, tienda, creada, vence_en, aceptada, rechazada, vencida, cerrada,
+    // regresando, entregas y pendientes. Aquí se pasa a lo que usa la pantalla.
+    const hora = (t?: string | null) =>
+      t ? new Date(t).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+    r.salidas = (r.salidas || []).map((s: any): SalidaResumen => {
+      const entregas = Number(s.entregas) || 0;
+      const pendientes = Number(s.pendientes) || 0;
+      const terminada = Boolean(s.cerrada || s.rechazada || s.vencida);
+      return {
+        codigo: s.codigo,
+        tienda: s.tienda,
+        creada: s.creada,
+        aceptada: Boolean(s.aceptada),
+        rechazada: Boolean(s.rechazada),
+        estado: terminada ? 'terminada' : s.aceptada ? 'en_curso' : 'asignada',
+        entregas_total: entregas,
+        entregas_restantes: pendientes,
+        entregadas: Math.max(0, entregas - pendientes),
+        hora: terminada || s.aceptada ? hora(s.creada) : s.vence_en ? 'Responde antes de las ' + hora(s.vence_en) : '',
+        regresando: Boolean(s.regresando),
+        resultado: s.rechazada ? 'No la tomaste' : s.vencida ? 'Venció' : s.cerrada ? 'Terminada' : '',
+      };
+    });
+    return r;
   } catch (err) {
     console.error('Fallo llamando a Supabase RPC mis_salidas:', err);
     throw err;

@@ -1,5 +1,5 @@
 // DomiRuta Service Worker
-const CACHE_NAME = 'domiruta-v1';
+const CACHE_NAME = 'domiruta-v2';
 
 // Recursos esenciales que se pre-cachean al instalar
 const PRECACHE_ASSETS = [
@@ -71,8 +71,9 @@ self.addEventListener('fetch', (event) => {
       fetch(req)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
+            // una sola copia de la página (si no, se guarda una por cada enlace ?s=, ?p= o ?r=)
             const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(req, responseClone));
+            caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', responseClone));
           }
           return networkResponse;
         })
@@ -100,7 +101,7 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => null);
 
-      return cachedResponse || fetchPromise;
+      return cachedResponse || fetchPromise.then((r) => r || Response.error());
     })
   );
 });

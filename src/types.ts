@@ -91,6 +91,8 @@ export interface SalidaResumen {
   hora?: string;
   creada?: string;
   terminada_en?: string;
+  regresando?: boolean;
+  resultado?: string; // Terminada / No la tomaste / Venció
 }
 
 export interface RespuestaMisSalidas {

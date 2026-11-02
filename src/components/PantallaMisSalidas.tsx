@@ -531,7 +531,7 @@ export function PantallaMisSalidas({
         {salidaNueva && (
           <section aria-labelledby="salida-nueva-titulo" className="space-y-2">
             <div className="flex items-center gap-1.5 px-1">
-              <span className="w-2 h-2 rounded-full bg-[#F28C1B] animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[#005198] animate-pulse" />
               <h2
                 id="salida-nueva-titulo"
                 className="font-poppins font-bold text-[15px] text-[#003A73] uppercase tracking-wide m-0"
@@ -540,8 +540,8 @@ export function PantallaMisSalidas({
               </h2>
             </div>
 
-            <article className="bg-white rounded-[5px] border-2 border-[#F28C1B] shadow-[0_4px_14px_rgba(242,140,27,0.18)] p-4 space-y-3.5">
-              <div className="flex items-start justify-between gap-3">
+            <article className="bg-white rounded-[5px] border-2 border-[#005198] shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4 space-y-3.5">
+              <div className="flex flex-col gap-1">
                 <div className="min-w-0">
                   <span className="font-inter text-xs text-[#5B6670]">Tienda</span>
                   <h3 className="font-poppins font-bold text-[18px] text-[#003A73] leading-snug m-0 truncate">
@@ -556,19 +556,14 @@ export function PantallaMisSalidas({
               </div>
 
               {/* Métricas clave */}
-              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#E3E7EC]">
+              <div className="pt-1 border-t border-[#E3E7EC]">
                 <div>
                   <span className="block font-inter text-xs text-[#5B6670]">Entregas</span>
                   <span className="font-poppins font-bold text-[16px] text-[#1F2933]">
                     {salidaNueva.entregas_total ?? salidaNueva.entregas_restantes ?? 1}
                   </span>
                 </div>
-                <div>
-                  <span className="block font-inter text-xs text-[#5B6670]">Total a cobrar</span>
-                  <span className="font-poppins font-bold text-[16px] text-[#003A73]">
-                    {formatearPesos(salidaNueva.total_cobrar || 0)}
-                  </span>
-                </div>
+
               </div>
 
               {/* ÚNICO BOTÓN NARANJA DE LA PANTALLA */}
@@ -621,9 +616,7 @@ export function PantallaMisSalidas({
                           {salida.tienda || 'Salida activa'}
                         </h3>
                       </div>
-                      <span className="font-poppins text-xs font-semibold text-[#005198] bg-[#005198]/10 px-2 py-0.5 rounded-[3px]">
-                        En ruta
-                      </span>
+                      
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-sm border-t border-[#E3E7EC] pt-2">
@@ -634,9 +627,9 @@ export function PantallaMisSalidas({
                         </strong>
                       </div>
                       <div>
-                        <span className="block font-inter text-xs text-[#5B6670]">A cobrar</span>
+                        <span className="block font-inter text-xs text-[#5B6670]">Estado</span>
                         <strong className="font-poppins font-bold text-[15px] text-[#003A73]">
-                          {formatearPesos(salida.total_cobrar || salida.plata_cobrada || 0)}
+                          {salida.regresando ? 'Regresando a la tienda' : 'En ruta'}
                         </strong>
                       </div>
                     </div>
@@ -691,8 +684,10 @@ export function PantallaMisSalidas({
 
                   <div className="flex items-center justify-between font-inter text-[13.5px] text-[#5B6670] pt-1 border-t border-[#E3E7EC]/60">
                     <div>
-                      <span className="text-[#1E7A44] font-medium">
-                        {salida.entregadas || 0} entregadas
+                      <span className={salida.resultado === 'Terminada' ? 'text-[#1E7A44] font-medium' : 'text-[#5B6670]'}>
+                        {salida.resultado === 'Terminada'
+                          ? `${salida.entregadas || 0} entregadas`
+                          : `${salida.entregas_total || 0} ${salida.entregas_total === 1 ? 'entrega' : 'entregas'}`}
                       </span>
                       {Boolean(salida.no_entregadas) && (
                         <span className="text-[#B03030] ml-2">
@@ -701,8 +696,8 @@ export function PantallaMisSalidas({
                       )}
                     </div>
                     <div className="text-right">
-                      <span className="font-poppins font-semibold text-[#003A73]">
-                        {formatearPesos(salida.plata_cobrada || salida.total_cobrar || 0)}
+                      <span className={`font-poppins font-semibold ${salida.resultado === 'Terminada' ? 'text-[#1E7A44]' : 'text-[#5B6670]'}`}>
+                        {salida.resultado}
                       </span>
                     </div>
                   </div>
