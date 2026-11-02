@@ -255,6 +255,7 @@ export default function App() {
 
   // Referencias para seguimiento y filtrado GPS
   const rechazosSeguidosRef = useRef(0);
+  const correccionesRef = useRef(new Map<string, { lat: number; lon: number; pendiente: boolean }>());
   const aceptandoRef = useRef(false);
   const enviandoRef = useRef(false);
   const ultimaLecturaGpsRef = useRef<{
@@ -401,7 +402,15 @@ export default function App() {
           }
         }
 
-        setParadas(ordenadas);
+        // las correcciones que hizo el repartidor se mantienen (Supabase guarda la parada con el punto viejo
+        // hasta que la tienda la aplica en DomiRuta)
+        const corregidas = correccionesRef.current;
+        setParadas(
+          ordenadas.map((p) => {
+            const c = corregidas.get(String(p.id));
+            return c ? { ...p, lat: c.lat, lon: c.lon, ubicacion_pendiente: c.pendiente } : p;
+          })
+        );
         setSalidaCerradaOVacia(ordenadas.length === 0);
       } catch (err) {
         console.error('Error al consultar ver_salida:', err);
@@ -954,6 +963,7 @@ export default function App() {
     nuevaLon: number,
     tipo: 'aplicada' | 'pendiente'
   ) => {
+    correccionesRef.current.set(String(paradaId), { lat: nuevaLat, lon: nuevaLon, pendiente: tipo === 'pendiente' });
     setParadas((prev) =>
       prev.map((p) =>
         String(p.id) === String(paradaId)

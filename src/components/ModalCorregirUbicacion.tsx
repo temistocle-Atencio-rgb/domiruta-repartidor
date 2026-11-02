@@ -194,7 +194,7 @@ export const ModalCorregirUbicacion: React.FC<ModalCorregirUbicacionProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label={`Mueve el pin a la casa de ${parada.nombre}`}
-      className="fixed inset-0 z-50 bg-[#F2F4F7] flex flex-col animate-in fade-in duration-200"
+      className="fixed inset-0 z-[2000] bg-[#F2F4F7] flex flex-col animate-in fade-in duration-200"
     >
       {/* Cabecera: título y dirección como texto */}
       <header className="bg-white border-b border-[#E3E7EC] px-4 py-3 flex-shrink-0 shadow-xs">
