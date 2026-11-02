@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Parada, Mensaje, InfoSalida } from './types.ts';
+import { Parada, Mensaje, InfoSalida, RutaSalida, EstadoEntrega } from './types.ts';
 
 // ============================================================
 // CONSTANTES DE CONFIGURACIÓN DE SUPABASE
@@ -62,6 +62,34 @@ export async function infoSalida(codigo: string): Promise<InfoSalida | null> {
 }
 
 // -------------------------------------------------------------
+// Función RPC: ruta_salida
+// -------------------------------------------------------------
+export async function rutaSalida(codigo: string): Promise<RutaSalida | null> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await client.rpc('ruta_salida', { p_codigo: codigo });
+    if (error) {
+      console.error('Error en supabase.rpc ruta_salida:', error);
+      return null;
+    }
+    if (Array.isArray(data) && data.length > 0) {
+      return data[0] as RutaSalida;
+    }
+    if (data && !Array.isArray(data)) {
+      return data as RutaSalida;
+    }
+    return null;
+  } catch (err) {
+    console.error('Fallo llamando a Supabase RPC ruta_salida:', err);
+    return null;
+  }
+}
+
+// -------------------------------------------------------------
 // Función RPC: responder_salida
 // -------------------------------------------------------------
 export async function responderSalida(
@@ -111,13 +139,15 @@ export async function verSalida(codigo: string): Promise<Parada[]> {
 }
 
 // -------------------------------------------------------------
-// Función RPC: marcar_entrega
+// Función RPC: enviar_posicion
 // -------------------------------------------------------------
-export async function marcarEntrega(
+export async function enviarPosicion(
   codigo: string,
-  id: string | number,
-  estado: 'en_camino' | 'entregado' | 'no_entregado',
-  motivo: string | null = null
+  lat: number,
+  lon: number,
+  precision: number,
+  rumbo: number | null,
+  velocidad: number | null
 ): Promise<boolean> {
   const client = getSupabaseClient();
   if (!client) {
@@ -125,21 +155,88 @@ export async function marcarEntrega(
   }
 
   try {
-    const { data, error } = await client.rpc('marcar_entrega', {
+    const { data, error } = await client.rpc('enviar_posicion', {
       p_codigo: codigo,
-      p_id: id,
-      p_estado: estado,
-      p_motivo: motivo,
+      p_lat: lat,
+      p_lon: lon,
+      p_precision: Math.round(precision),
+      p_rumbo: rumbo !== null && !isNaN(rumbo) ? Math.round(rumbo) : null,
+      p_velocidad: velocidad !== null && !isNaN(velocidad) ? Number(velocidad.toFixed(1)) : null,
     });
 
     if (error) {
-      console.error('Error en supabase.rpc marcar_entrega:', error);
+      console.error('Error en supabase.rpc enviar_posicion:', error);
       return false;
     }
 
     return data === true;
   } catch (err) {
-    console.error('Fallo de red o llamada marcar_entrega:', err);
+    console.error('Fallo al enviar posición:', err);
+    return false;
+  }
+}
+
+// -------------------------------------------------------------
+// Función RPC: pausar_ubicacion
+// -------------------------------------------------------------
+export async function pausarUbicacion(codigo: string, pausar: boolean): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await client.rpc('pausar_ubicacion', {
+      p_codigo: codigo,
+      p_pausar: pausar,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc pausar_ubicacion:', error);
+      return false;
+    }
+
+    return data === true;
+  } catch (err) {
+    console.error('Fallo al pausar ubicación:', err);
+    return false;
+  }
+}
+
+// -------------------------------------------------------------
+// Función RPC: marcar_entrega_gps
+// -------------------------------------------------------------
+export async function marcarEntregaGps(
+  codigo: string,
+  id: string | number,
+  estado: EstadoEntrega,
+  motivo: string | null = null,
+  lat: number | null = null,
+  lon: number | null = null
+): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await client.rpc('marcar_entrega_gps', {
+      p_codigo: codigo,
+      p_id: id,
+      p_estado: estado,
+      p_motivo: motivo,
+      p_lat: lat,
+      p_lon: lon,
+    });
+
+    if (error) {
+      console.error('Error en supabase.rpc marcar_entrega_gps:', error);
+      return false;
+    }
+
+    return data === true;
+  } catch (err) {
+    console.error('Fallo llamando a marcar_entrega_gps:', err);
     return false;
   }
 }
@@ -194,34 +291,6 @@ export async function enviarMensaje(codigo: string, texto: string): Promise<bool
     return data === true;
   } catch (err) {
     console.error('Fallo al enviar mensaje:', err);
-    return false;
-  }
-}
-
-// -------------------------------------------------------------
-// Función RPC: enviar_ubicacion
-// -------------------------------------------------------------
-export async function enviarUbicacion(codigo: string, lat: number, lon: number): Promise<boolean> {
-  const client = getSupabaseClient();
-  if (!client) {
-    return false;
-  }
-
-  try {
-    const { data, error } = await client.rpc('enviar_ubicacion', {
-      p_codigo: codigo,
-      p_lat: lat,
-      p_lon: lon,
-    });
-
-    if (error) {
-      console.error('Error en supabase.rpc enviar_ubicacion:', error);
-      return false;
-    }
-
-    return data === true;
-  } catch (err) {
-    console.error('Fallo al enviar ubicación:', err);
     return false;
   }
 }

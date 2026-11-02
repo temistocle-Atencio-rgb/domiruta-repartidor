@@ -2,6 +2,7 @@ import React from 'react';
 import { RefreshCw, MessageSquare, MapPin } from 'lucide-react';
 
 interface HeaderProps {
+  tiendaNombre?: string | null;
   entregadas: number;
   total: number;
   cargando: boolean;
@@ -14,22 +15,27 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  tiendaNombre,
   entregadas,
   total,
   cargando,
   onRecargar,
-  codigo,
   mensajesNuevos,
   onAbrirMensajes,
   ubicacionActiva,
   onAlternarUbicacion,
 }) => {
+  const nombreParaMostrar =
+    tiendaNombre && tiendaNombre.trim().length > 0
+      ? tiendaNombre.trim()
+      : 'DomiRuta Repartidor';
+
   return (
-    <header className="bg-[#003A73] text-white pt-2.5 pb-3.5 px-4 sticky top-0 z-30 shadow-md">
-      {/* Fila 1: Logo de la marca y Acciones superiores (Ubicación, Mensajes, Recargar) */}
-      <div className="flex items-center justify-between border-b border-white/15 pb-2.5 mb-2.5">
-        <div className="flex items-center gap-2">
-          {/* Isotipo: Cubo isométrico versión blanca para fondo azul profundo */}
+    <header className="bg-[#003A73] text-white pt-2.5 pb-3 px-4 sticky top-0 z-30 shadow-md">
+      {/* Fila 1: Logo, Nombre de la tienda y Acciones (Mensajes, Recargar) */}
+      <div className="flex items-center justify-between gap-2 border-b border-white/15 pb-2.5 mb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {/* Isotipo: Cubo isométrico versión blanca */}
           <svg
             className="w-5 h-6 flex-shrink-0"
             viewBox="0 0 259.8 300"
@@ -41,18 +47,15 @@ export const Header: React.FC<HeaderProps> = ({
             <polygon fill="#FFFFFF" fillOpacity="0.8" points="0,75 129.9,150 129.9,300 0,225" />
             <polygon fill="#FFFFFF" fillOpacity="0.6" points="129.9,150 259.8,75 259.8,225 129.9,300" />
           </svg>
-          <div className="flex items-baseline gap-1">
-            <span className="font-poppins font-bold text-base tracking-tight leading-none text-white">
-              Domi<span className="text-[#F28C1B]">Ruta</span>
-            </span>
-            <span className="font-inter text-xs text-white/80 font-normal">
-              Repartidor
+          <div className="min-w-0">
+            <span className="font-poppins font-bold text-base text-white tracking-tight truncate block">
+              {nombreParaMostrar}
             </span>
           </div>
         </div>
 
-        {/* Acciones principales en la cabecera */}
-        <div className="flex items-center gap-1.5">
+        {/* Acciones en la cabecera */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           {/* Botón de Mensajes con indicador naranja */}
           <button
             type="button"
@@ -71,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden xs:inline">Mensajes</span>
           </button>
 
-          {/* Botón de recarga manual táctil */}
+          {/* Botón de recarga manual */}
           <button
             type="button"
             onClick={onRecargar}
@@ -88,39 +91,31 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Fila 2: Título de entregas, Estado de ubicación y código */}
-      <div className="flex items-end justify-between">
+      {/* Fila 2: Progreso de entregas e interruptor discreto de Compartir ubicación */}
+      <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="font-poppins font-bold text-[19px] leading-tight text-white m-0">
-            Tus entregas
-          </h1>
-          <p className="font-inter text-[13.5px] text-white/90 mt-0.5 mb-0 font-medium">
+          <p className="font-inter text-[13.5px] text-white/95 m-0 font-medium">
             {total > 0 ? `${entregadas} de ${total} entregadas` : 'Cargando paradas...'}
           </p>
         </div>
 
-        {/* Estado interactivo de compartir ubicación */}
-        <div className="flex flex-col items-end gap-1">
-          <button
-            type="button"
-            onClick={onAlternarUbicacion}
-            className="min-h-[36px] px-2 py-1 rounded-[5px] flex items-center gap-1.5 bg-black/15 hover:bg-black/25 active:bg-black/30 transition-colors cursor-pointer text-left"
-            title="Toca para cambiar el estado de la ubicación"
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                ubicacionActiva ? 'bg-[#2E9E5B] animate-pulse' : 'bg-white/40'
-              }`}
-            />
-            <span
-              className={`font-inter text-[12px] font-medium ${
-                ubicacionActiva ? 'text-[#2E9E5B]' : 'text-white/70'
-              }`}
-            >
-              {ubicacionActiva ? 'Ubicación activa' : 'Ubicación apagada'}
-            </span>
-          </button>
-        </div>
+        {/* Interruptor discreto: "Compartir mi ubicación" */}
+        <button
+          type="button"
+          onClick={onAlternarUbicacion}
+          className="min-h-[38px] px-2.5 py-1 rounded-[5px] flex items-center gap-2 bg-black/15 hover:bg-black/25 active:bg-black/30 transition-colors cursor-pointer text-left"
+          title={ubicacionActiva ? 'Toca para pausar la ubicación' : 'Toca para reanudar la ubicación'}
+          aria-label={ubicacionActiva ? 'Compartir ubicación activo' : 'Compartir ubicación pausado'}
+        >
+          <span
+            className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              ubicacionActiva ? 'bg-[#2E9E5B] animate-pulse' : 'bg-[#B03030]'
+            }`}
+          />
+          <span className="font-inter text-[12px] font-medium text-white/90">
+            {ubicacionActiva ? 'Compartiendo ubicación' : 'Ubicación pausada'}
+          </span>
+        </button>
       </div>
     </header>
   );

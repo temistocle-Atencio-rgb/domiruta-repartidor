@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 :root {
   --azul: #005198;
@@ -37,4 +38,31 @@ body {
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
   outline: 2px solid #005198;
   outline-offset: 2px;
+}
+
+/* Animación de cambio de dirección para la moto */
+@keyframes moto-flip-anim {
+  0% { transform: scaleX(1); }
+  50% { transform: scaleX(0.05); }
+  100% { transform: scaleX(1); }
+}
+
+.anim-flip-moto {
+  animation: moto-flip-anim 160ms ease-in-out;
+}
+
+/* Estilos de controles Leaflet adaptados a marca */
+.leaflet-container {
+  font-family: var(--font-inter);
+}
+
+.leaflet-control-attribution {
+  font-size: 10px !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: #5B6670 !important;
+}
+
+.leaflet-control-zoom a {
+  border-radius: 5px !important;
+  color: #003A73 !important;
 }

@@ -15,26 +15,12 @@ export interface Parada {
   lon?: number | null;
   cobrar: number;
   paga_con: number;
+  cambio_de?: number | null;
   estado: EstadoEntrega;
   motivo?: string | null;
   tiene_foto?: boolean;
   venta?: string | null;
   productos?: number | null;
-}
-
-export interface MarcarEntregaParams {
-  p_codigo: string;
-  p_id: string | number;
-  p_estado: EstadoEntrega;
-  p_motivo: string | null;
-}
-
-export interface Mensaje {
-  id: number;
-  de: 'tienda' | 'repartidor';
-  texto: string;
-  creado: string;
-  leido?: boolean;
 }
 
 export interface InfoSalida {
@@ -43,6 +29,28 @@ export interface InfoSalida {
   creada: string;
   aceptada: boolean;
   rechazada: boolean;
+  vence_en?: string | null;
+  vencida?: boolean;
+  tienda_lat?: number | null;
+  tienda_lon?: number | null;
+  distancia_m?: number | null;
+  ubicacion_pausada?: boolean;
+}
+
+export interface RutaSalida {
+  ruta?: [number, number][] | null;
+  calles?: [number, number][][] | null;
+  distancia_m?: number | null;
+  tienda_lat?: number | null;
+  tienda_lon?: number | null;
+}
+
+export interface Mensaje {
+  id: number;
+  de: 'tienda' | 'repartidor';
+  texto: string;
+  creado: string;
+  leido?: boolean;
 }
 
 export interface ResumenSalidaGuardado {

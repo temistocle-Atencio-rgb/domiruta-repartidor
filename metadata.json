@@ -1,6 +1,6 @@
 {
   "name": "DomiRuta Repartidor",
   "description": "Aplicación móvil para que el repartidor de una tienda de barrio en Riohacha marque los domicilios entregados en su ruta.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "requestFramePermissions": ["GEOLOCATION"],
+  "majorCapabilities": []
 }

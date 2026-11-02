@@ -1,11 +1,20 @@
 import React, { useState } from 'react';
-import { Parada } from '../types.ts';
+import { Parada, RutaSalida } from '../types.ts';
 import { formatearPesos } from '../supabase.ts';
-import { MessageSquare, MapPin, X } from 'lucide-react';
+import { MapaRuta } from './MapaRuta.tsx';
+import { distanciaHaversine } from '../utils/geo.ts';
+import { MessageSquare, MapPin, X, AlertTriangle } from 'lucide-react';
 
 interface PantallaAceptarSalidaProps {
   tienda: string;
+  venceEn?: string | null;
+  vencida?: boolean;
+  distanciaM?: number | null;
+  tiendaLat?: number | null;
+  tiendaLon?: number | null;
+  posicionUsuarioGps?: { lat: number; lon: number } | null;
   paradas: Parada[];
+  rutaData?: RutaSalida | null;
   cargandoRespuesta: boolean;
   onAceptar: () => Promise<void>;
   onRechazar: (motivo: string) => Promise<void>;
@@ -22,7 +31,14 @@ const MOTIVOS_RECHAZO = [
 
 export const PantallaAceptarSalida: React.FC<PantallaAceptarSalidaProps> = ({
   tienda,
+  venceEn,
+  vencida = false,
+  distanciaM,
+  tiendaLat,
+  tiendaLon,
+  posicionUsuarioGps,
   paradas,
+  rutaData,
   cargandoRespuesta,
   onAceptar,
   onRechazar,
@@ -33,16 +49,71 @@ export const PantallaAceptarSalida: React.FC<PantallaAceptarSalidaProps> = ({
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<string>('Estoy ocupado');
   const [motivoOtro, setMotivoOtro] = useState<string>('');
 
+  // Si venció la salida
+  if (vencida) {
+    return (
+      <main className="min-h-screen bg-[#F2F4F7] flex flex-col justify-center items-center p-4">
+        <div className="w-full max-w-sm bg-white rounded-[5px] border border-[#E3E7EC] shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-6 text-center space-y-4">
+          <div className="w-14 h-14 rounded-full bg-[#B03030]/10 text-[#B03030] flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-7 h-7 text-[#B03030]" strokeWidth={2} />
+          </div>
+          <h1 className="font-poppins font-bold text-[19px] text-[#003A73] leading-snug m-0">
+            Esta salida ya no está disponible
+          </h1>
+          <p className="font-inter text-[14px] text-[#5B6670] m-0">
+            El tiempo para responder venció o la salida fue asignada a otro repartidor.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   const totalEntregas = paradas.length;
   const totalCobrar = paradas.reduce((sum, p) => sum + (p.cobrar || 0), 0);
-
-  // Lista corta de direcciones (máximo 5; si hay más, "y N más")
   const direccionesAMostrar = paradas.slice(0, 5);
   const direccionesRestantes = totalEntregas > 5 ? totalEntregas - 5 : 0;
 
-  const tituloTienda = tienda && tienda.trim().length > 0
-    ? `${tienda.trim()} te asignó una salida`
-    : 'La tienda te asignó una salida';
+  // Distancia total en km
+  const metros = distanciaM ?? rutaData?.distancia_m;
+  const textoDistancia =
+    typeof metros === 'number' && metros > 0
+      ? `${(metros / 1000).toFixed(1).replace('.', ',')} km`
+      : null;
+
+  // Hora de vencimiento (ej. 10:40 a. m.)
+  let textoVenceEn: string | null = null;
+  if (venceEn) {
+    try {
+      const fecha = new Date(venceEn);
+      textoVenceEn = new Intl.DateTimeFormat('es-CO', {
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true,
+      }).format(fecha);
+    } catch {
+      // Ignorar error de parseo
+    }
+  }
+
+  // Distancia del repartidor a la tienda en línea recta si ya hay GPS
+  let textoDistanciaRepartidorTienda: string | null = null;
+  const tLat = tiendaLat ?? rutaData?.tienda_lat;
+  const tLon = tiendaLon ?? rutaData?.tienda_lon;
+  if (
+    posicionUsuarioGps &&
+    typeof tLat === 'number' &&
+    typeof tLon === 'number'
+  ) {
+    const distMetros = distanciaHaversine(
+      posicionUsuarioGps.lat,
+      posicionUsuarioGps.lon,
+      tLat,
+      tLon
+    );
+    textoDistanciaRepartidorTienda = `Estás a ${(distMetros / 1000).toFixed(1).replace('.', ',')} km de la tienda`;
+  }
+
+  const nombreTienda = tienda && tienda.trim().length > 0 ? tienda.trim() : 'La tienda';
 
   const handleConfirmarRechazo = async () => {
     let motivoFinal = motivoSeleccionado;
@@ -54,8 +125,8 @@ export const PantallaAceptarSalida: React.FC<PantallaAceptarSalidaProps> = ({
 
   return (
     <div className="min-h-screen bg-[#F2F4F7] flex flex-col">
-      {/* Barra superior en azul profundo con logo DomiRuta y botón de mensajes */}
-      <header className="bg-[#003A73] text-white px-4 py-3 flex items-center justify-between shadow-md">
+      {/* Barra superior en azul profundo #003A73 con nombre de la tienda */}
+      <header className="bg-[#003A73] text-white px-4 py-2.5 flex items-center justify-between shadow-md z-10 flex-shrink-0">
         <div className="flex items-center gap-2">
           {/* Cubo isométrico oficial versión blanca */}
           <svg
@@ -69,12 +140,12 @@ export const PantallaAceptarSalida: React.FC<PantallaAceptarSalidaProps> = ({
             <polygon fill="#FFFFFF" fillOpacity="0.8" points="0,75 129.9,150 129.9,300 0,225" />
             <polygon fill="#FFFFFF" fillOpacity="0.6" points="129.9,150 259.8,75 259.8,225 129.9,300" />
           </svg>
-          <span className="font-poppins font-bold text-base text-white">
-            Domi<span className="text-[#F28C1B]">Ruta</span> Repartidor
+          <span className="font-poppins font-bold text-base text-white truncate max-w-[200px]">
+            {nombreTienda}
           </span>
         </div>
 
-        {/* Botón de mensajes habilitado antes de aceptar */}
+        {/* Botón de mensajes con la tienda habilitado antes de aceptar */}
         <button
           type="button"
           onClick={onAbrirMensajes}
@@ -93,89 +164,83 @@ export const PantallaAceptarSalida: React.FC<PantallaAceptarSalidaProps> = ({
         </button>
       </header>
 
-      {/* Contenido principal centrado */}
-      <main className="flex-1 max-w-md mx-auto w-full p-4 flex flex-col justify-center space-y-4">
-        {/* Cubo de DomiRuta e información principal */}
-        <div className="text-center space-y-2 pt-2">
-          <div className="flex justify-center">
-            <svg
-              className="w-12 h-14"
-              viewBox="0 0 259.8 300"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <polygon fill="#F28C1B" points="0,75 129.9,0 259.8,75 129.9,150" />
-              <polygon fill="#005198" points="0,75 129.9,150 129.9,300 0,225" />
-              <polygon fill="#003A73" points="129.9,150 259.8,75 259.8,225 129.9,300" />
-            </svg>
-          </div>
+      {/* Mapa arriba (alto ~45 % de la pantalla) con la ruta en azul #005198 5px, tienda y paradas numeradas */}
+      <MapaRuta
+        paradas={paradas}
+        rutaSalidaData={rutaData}
+        tiendaLat={tLat}
+        tiendaLon={tLon}
+        className="h-[44vh] min-h-[240px] w-full flex-shrink-0"
+      />
+
+      {/* Contenido inferior con resumen y botones */}
+      <main className="flex-1 max-w-md mx-auto w-full px-4 py-4 space-y-3.5">
+        <div>
           <h1 className="font-poppins font-bold text-[20px] text-[#003A73] leading-snug m-0">
-            {tituloTienda}
+            <strong>{nombreTienda}</strong> te asignó una salida
           </h1>
+          {textoVenceEn && (
+            <p className="font-inter text-xs text-[#5B6670] mt-0.5 mb-0 font-medium">
+              Responde antes de las {textoVenceEn}
+            </p>
+          )}
+          {textoDistanciaRepartidorTienda && (
+            <p className="font-inter text-xs text-[#005198] mt-0.5 mb-0 font-medium">
+              {textoDistanciaRepartidorTienda}
+            </p>
+          )}
         </div>
 
         {/* Tarjeta blanca con resumen de la salida */}
         <section
           aria-label="Resumen de la salida"
-          className="bg-white rounded-[5px] border border-[#E3E7EC] shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-4 space-y-3.5"
+          className="bg-white rounded-[5px] border border-[#E3E7EC] shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-3.5 space-y-3"
         >
-          <div className="flex items-center justify-between border-b border-[#E3E7EC] pb-3">
+          <div className="flex items-center justify-between border-b border-[#E3E7EC] pb-2.5">
             <div>
-              <span className="block font-poppins font-bold text-[18px] text-[#1F2933]">
-                {totalEntregas} {totalEntregas === 1 ? 'entrega' : 'entregas'}
-              </span>
-              <span className="font-inter text-xs text-[#5B6670]">
-                Ruta asignada
-              </span>
-            </div>
-            <div className="text-right">
               <span className="block font-poppins font-bold text-[18px] text-[#003A73]">
-                Cobras en total {formatearPesos(totalCobrar)}
+                COBRAR {formatearPesos(totalCobrar)}
               </span>
               <span className="font-inter text-xs text-[#5B6670]">
-                A recaudar en ruta
+                {totalEntregas} {totalEntregas === 1 ? 'entrega' : 'entregas'}
+                {textoDistancia ? ` · ${textoDistancia}` : ''}
               </span>
             </div>
           </div>
 
-          {/* Lista corta de direcciones */}
-          <div className="space-y-2 pt-1">
+          {/* Lista corta de paradas */}
+          <div className="space-y-2 pt-0.5">
             <span className="font-inter text-xs font-semibold text-[#5B6670] uppercase tracking-wider block">
               Paradas:
             </span>
-            <ul className="space-y-2.5 list-none m-0 p-0">
+            <ul className="space-y-2 list-none m-0 p-0">
               {direccionesAMostrar.map((parada) => (
                 <li
                   key={parada.id}
-                  className="font-inter text-[13.5px] text-[#1F2933] flex items-start gap-2.5"
+                  className="font-inter text-[13.5px] text-[#1F2933] flex items-start gap-2"
                 >
-                  <MapPin className="w-4 h-4 text-[#005198] flex-shrink-0 mt-1" strokeWidth={2} />
+                  <MapPin className="w-4 h-4 text-[#005198] flex-shrink-0 mt-0.5" strokeWidth={2} />
                   <div className="min-w-0 flex-1 leading-snug break-words">
-                    <span className="font-semibold text-[#1F2933]">{parada.nombre}</span>
+                    <span className="font-semibold text-[#1F2933]">
+                      #{parada.orden} {parada.nombre}
+                    </span>
                     <span className="text-[#5B6670] mx-1">·</span>
                     <span className="text-[#1F2933] font-normal">{parada.direccion}</span>
-                    {parada.referencia && (
-                      <span className="block text-[12px] text-[#5B6670] italic mt-0.5">
-                        Ref: {parada.referencia}
-                      </span>
-                    )}
                   </div>
                 </li>
               ))}
             </ul>
 
             {direccionesRestantes > 0 && (
-              <p className="font-inter text-[13px] text-[#5B6670] italic m-0 pt-1 pl-6">
+              <p className="font-inter text-[12.5px] text-[#5B6670] italic m-0 pt-0.5 pl-6">
                 y {direccionesRestantes} más
               </p>
             )}
           </div>
         </section>
 
-        {/* Botones de acción */}
-        <div className="space-y-2.5 pt-2">
-          {/* Botón naranja a todo el ancho: "Acepto" */}
+        {/* Botones de acción: UN solo botón naranja principal a todo el ancho */}
+        <div className="space-y-2 pt-1 pb-4">
           <button
             type="button"
             onClick={onAceptar}
@@ -192,7 +257,6 @@ export const PantallaAceptarSalida: React.FC<PantallaAceptarSalidaProps> = ({
             )}
           </button>
 
-          {/* Botón con borde: "No puedo" */}
           <button
             type="button"
             onClick={() => setHojaRechazoAbierta(true)}

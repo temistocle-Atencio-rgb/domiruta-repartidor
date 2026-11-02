@@ -2,11 +2,12 @@ import React, { useState, useRef } from 'react';
 import { Parada } from '../types.ts';
 import { formatearPesos, subirFoto } from '../supabase.ts';
 import { comprimirFoto } from '../utils/image.ts';
-import { Phone, Navigation, RotateCcw, Check, XCircle, Camera, CheckCheck } from 'lucide-react';
+import { Phone, Navigation, RotateCcw, Check, XCircle, Camera, MessageCircle } from 'lucide-react';
 
 interface TarjetaParadaProps {
   parada: Parada;
   codigo: string;
+  esDestacada?: boolean;
   esNueva?: boolean;
   cargandoEstaParada: boolean;
   fotoEnMemoria?: string;
@@ -21,6 +22,7 @@ interface TarjetaParadaProps {
 export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
   parada,
   codigo,
+  esDestacada = true,
   esNueva = false,
   cargandoEstaParada,
   fotoEnMemoria,
@@ -37,16 +39,30 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
   const tieneTelefono = Boolean(parada.telefono && parada.telefono.trim().length > 0);
   const tieneCoordenadas = typeof parada.lat === 'number' && typeof parada.lon === 'number';
 
+  // Enlace para WhatsApp en Colombia (+57)
+  let urlWhatsApp: string | null = null;
+  if (tieneTelefono && parada.telefono) {
+    const digitos = parada.telefono.replace(/\D/g, '');
+    if (digitos.length > 0) {
+      const numeroCol = digitos.startsWith('57') && digitos.length >= 12 ? digitos : `57${digitos}`;
+      urlWhatsApp = `https://wa.me/${numeroCol}`;
+    }
+  }
+
   // Cálculos de cobro y cambio
   const debeCobrar = parada.cobrar > 0;
-  const tienePagaCon = parada.paga_con > 0;
-  const cambio = tienePagaCon ? Math.max(0, parada.paga_con - parada.cobrar) : 0;
+  const montoCambio =
+    typeof parada.cambio_de === 'number' && parada.cambio_de > 0
+      ? parada.cambio_de
+      : parada.paga_con > parada.cobrar
+      ? parada.paga_con - parada.cobrar
+      : 0;
 
   const urlComoLlegar = tieneCoordenadas
     ? `https://www.google.com/maps/dir/?api=1&destination=${parada.lat},${parada.lon}`
     : null;
 
-  // Requisito 1: Línea de venta y productos
+  // Línea de venta y productos
   const tieneVenta = Boolean(parada.venta && parada.venta.trim().length > 0);
   const textoVenta = tieneVenta
     ? parada.productos && parada.productos > 0
@@ -86,7 +102,9 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
   return (
     <article
       className={`bg-white rounded-[5px] p-4 transition-all duration-200 ${
-        esNueva
+        esDestacada
+          ? 'border-2 border-[#005198] shadow-[0_2px_10px_rgba(0,81,152,0.14)]'
+          : esNueva
           ? 'border-2 border-[#005198] shadow-[0_0_0_3px_rgba(0,81,152,0.18)]'
           : 'border border-[#E3E7EC] shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
       }`}
@@ -101,16 +119,25 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
         </div>
 
         <div className="flex-1 min-w-0">
-          <h2 className="font-poppins font-bold text-[17px] text-[#1F2933] leading-snug break-words m-0">
-            {parada.nombre}
-          </h2>
-          <p className="font-inter text-[14px] text-[#1F2933] mt-0.5 mb-0 break-words font-medium">
+          <div className="flex items-center gap-2">
+            <h2 className="font-poppins font-bold text-[17px] text-[#1F2933] leading-snug break-words m-0">
+              {parada.nombre}
+            </h2>
+            {esDestacada && (
+              <span className="text-[11px] font-poppins font-bold text-[#005198] bg-[#005198]/10 px-2 py-0.5 rounded-[3px] uppercase tracking-wide">
+                Siguiente
+              </span>
+            )}
+          </div>
+
+          {/* Dirección completa sin cortar */}
+          <p className="font-inter text-[14px] text-[#1F2933] mt-1 mb-0 break-words font-medium leading-snug">
             {parada.direccion}
           </p>
 
-          {/* Requisito 1: Número de venta y productos debajo de la dirección */}
+          {/* Número de venta y productos */}
           {textoVenta && (
-            <p className="font-inter text-[13px] text-[#5B6670] mt-0.5 mb-0">
+            <p className="font-inter text-[13px] text-[#5B6670] mt-1 mb-0">
               {textoVenta}
             </p>
           )}
@@ -123,45 +150,59 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
         </div>
       </div>
 
-      {/* Sección de Cobro */}
+      {/* Sección de Cobro y Cambio */}
       <div className="mt-3.5 pt-3 border-t border-[#E3E7EC]">
         {debeCobrar ? (
           <div>
             <div className="font-poppins font-bold text-[22px] text-[#003A73] leading-tight">
               COBRAR {formatearPesos(parada.cobrar)}
             </div>
-            {tienePagaCon && (
-              <div className="font-inter text-[13.5px] text-[#5B6670] mt-0.5">
-                Paga con {formatearPesos(parada.paga_con)} ·{' '}
-                {cambio > 0 ? (
-                  <span className="font-medium text-[#1F2933]">
-                    lleva {formatearPesos(cambio)} de cambio
-                  </span>
-                ) : (
-                  <span className="font-medium text-[#1F2933]">pago exacto</span>
-                )}
+            {montoCambio > 0 && (
+              <div className="font-inter text-[13.5px] text-[#5B6670] mt-0.5 font-medium">
+                Llevar cambio de {formatearPesos(montoCambio)}
+                {parada.paga_con > 0 && ` (paga con ${formatearPesos(parada.paga_con)})`}
+              </div>
+            )}
+            {montoCambio === 0 && parada.paga_con > 0 && (
+              <div className="font-inter text-[13px] text-[#5B6670] mt-0.5">
+                Pago exacto ({formatearPesos(parada.paga_con)})
               </div>
             )}
           </div>
         ) : (
-          <div className="font-poppins font-bold text-[18px] text-[#1E7A44] leading-tight flex items-center gap-1.5">
+          <div className="font-poppins font-bold text-[17px] text-[#1E7A44] leading-tight flex items-center gap-1.5">
             <Check className="w-5 h-5 text-[#1E7A44]" strokeWidth={2.5} />
             YA PAGÓ
           </div>
         )}
       </div>
 
-      {/* Botones de contacto y mapa (Llamar y Cómo llegar) */}
+      {/* Botones de contacto y navegación: Llamar, WhatsApp, Cómo llegar */}
       {(tieneTelefono || tieneCoordenadas) && (
-        <div className="mt-3.5 grid grid-cols-2 gap-2">
+        <div className="mt-3.5 grid grid-cols-3 gap-2">
           {tieneTelefono ? (
             <a
               href={`tel:${parada.telefono}`}
-              className="h-[48px] px-3 bg-white hover:bg-[#F2F4F7] active:bg-[#E3E7EC] text-[#005198] border border-[#005198] rounded-[5px] font-poppins font-semibold text-[13.5px] flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="min-h-[48px] px-2 bg-white hover:bg-[#F2F4F7] active:bg-[#E3E7EC] text-[#005198] border border-[#005198] rounded-[5px] font-poppins font-semibold text-[13px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none text-center"
               aria-label={`Llamar a ${parada.nombre} al ${parada.telefono}`}
             >
               <Phone className="w-4 h-4 flex-shrink-0" strokeWidth={2} />
               <span>Llamar</span>
+            </a>
+          ) : (
+            <div />
+          )}
+
+          {urlWhatsApp ? (
+            <a
+              href={urlWhatsApp}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="min-h-[48px] px-2 bg-white hover:bg-[#F2F4F7] active:bg-[#E3E7EC] text-[#1E7A44] border border-[#1E7A44] rounded-[5px] font-poppins font-semibold text-[13px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none text-center"
+              aria-label={`Escribir por WhatsApp a ${parada.nombre}`}
+            >
+              <MessageCircle className="w-4 h-4 flex-shrink-0" strokeWidth={2} />
+              <span>WhatsApp</span>
             </a>
           ) : (
             <div />
@@ -172,11 +213,11 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
               href={urlComoLlegar}
               target="_blank"
               rel="noopener noreferrer"
-              className="h-[48px] px-3 bg-white hover:bg-[#F2F4F7] active:bg-[#E3E7EC] text-[#005198] border border-[#005198] rounded-[5px] font-poppins font-semibold text-[13.5px] flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="min-h-[48px] px-2 bg-white hover:bg-[#F2F4F7] active:bg-[#E3E7EC] text-[#005198] border border-[#005198] rounded-[5px] font-poppins font-semibold text-[13px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none text-center"
               aria-label={`Cómo llegar a ${parada.direccion}`}
             >
               <Navigation className="w-4 h-4 flex-shrink-0" strokeWidth={2} />
-              <span>Cómo llegar</span>
+              <span className="truncate">Cómo llegar</span>
             </a>
           ) : (
             <div />
@@ -207,7 +248,7 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
               </button>
             </div>
 
-            {/* Requisito 3: Foto de entrega con miniatura 56x56 px */}
+            {/* Foto de entrega con miniatura 56x56 px */}
             <div className="pt-2 border-t border-[#E3E7EC]/60">
               {subiendoFoto ? (
                 <div className="space-y-1.5 py-1">
@@ -221,7 +262,6 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
                 </div>
               ) : parada.tiene_foto ? (
                 <div className="flex items-center gap-3">
-                  {/* Miniatura 56x56 px */}
                   {fotoEnMemoria ? (
                     <button
                       type="button"
@@ -299,25 +339,47 @@ export const TarjetaParada: React.FC<TarjetaParadaProps> = ({
         ) : (
           /* Parada en camino */
           <div className="space-y-2.5">
-            {/* Botón principal naranja a todo el ancho: "Entregado" con texto en #1F2933 */}
-            <button
-              type="button"
-              onClick={() => onMarcarEntregado(parada)}
-              disabled={cargandoEstaParada}
-              className="w-full h-[48px] bg-[#F28C1B] hover:bg-[#e07f15] active:bg-[#cc710e] text-[#1F2933] rounded-[5px] font-poppins font-semibold text-[15px] flex items-center justify-center gap-2 shadow-sm transition-colors disabled:opacity-60 cursor-pointer select-none"
-            >
-              {cargandoEstaParada ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 border-[#1F2933] border-t-transparent rounded-full animate-spin" />
-                  Guardando entrega...
-                </span>
-              ) : (
-                <>
-                  <Check className="w-5 h-5 text-[#1F2933]" strokeWidth={2.5} />
-                  <span>Entregado</span>
-                </>
-              )}
-            </button>
+            {/* Si es destacada: ÚNICO botón naranja principal por pantalla */}
+            {esDestacada ? (
+              <button
+                type="button"
+                onClick={() => onMarcarEntregado(parada)}
+                disabled={cargandoEstaParada}
+                className="w-full h-[48px] bg-[#F28C1B] hover:bg-[#e07f15] active:bg-[#cc710e] text-[#1F2933] rounded-[5px] font-poppins font-semibold text-[15px] flex items-center justify-center gap-2 shadow-sm transition-colors disabled:opacity-60 cursor-pointer select-none"
+              >
+                {cargandoEstaParada ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-[#1F2933] border-t-transparent rounded-full animate-spin" />
+                    Guardando entrega...
+                  </span>
+                ) : (
+                  <>
+                    <Check className="w-5 h-5 text-[#1F2933]" strokeWidth={2.5} />
+                    <span>Entregué</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              /* Si no es destacada: botón azul para respetar la regla de un solo botón naranja */
+              <button
+                type="button"
+                onClick={() => onMarcarEntregado(parada)}
+                disabled={cargandoEstaParada}
+                className="w-full h-[48px] bg-[#005198] hover:bg-[#003A73] active:bg-[#002b55] text-white rounded-[5px] font-poppins font-semibold text-[15px] flex items-center justify-center gap-2 shadow-sm transition-colors disabled:opacity-60 cursor-pointer select-none"
+              >
+                {cargandoEstaParada ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Guardando entrega...
+                  </span>
+                ) : (
+                  <>
+                    <Check className="w-5 h-5 text-white" strokeWidth={2.5} />
+                    <span>Entregué</span>
+                  </>
+                )}
+              </button>
+            )}
 
             {/* Botón secundario: "No pude entregar" */}
             <button
