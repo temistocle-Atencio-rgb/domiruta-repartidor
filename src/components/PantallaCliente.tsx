@@ -308,7 +308,7 @@ export const PantallaCliente: React.FC<PantallaClienteProps> = ({
         {/* Encabezado con saludo */}
         <section className="bg-white border-b border-[#E3E7EC] px-4 py-4">
           <div className="max-w-md mx-auto w-full space-y-2">
-            <p className="font-poppins font-bold text-[22px] text-[#003A73] leading-tight m-0">
+            <p className="font-poppins font-bold text-[22px] text-[#003A73] leading-tight m-0 break-words">
               Hola, {nombre}
             </p>
             {renderDetalleEstado()}

@@ -13,7 +13,7 @@ import {
   isSupabaseConfigured,
   formatearPesos,
 } from './supabase.ts';
-import { validarLecturaGps } from './utils/geo.ts';
+import { validarLecturaGps, pegarALaRutaDesde, pegarALaCalle } from './utils/geo.ts';
 import { Header } from './components/Header.tsx';
 import { MapaRuta } from './components/MapaRuta.tsx';
 import { TarjetaParada } from './components/TarjetaParada.tsx';
@@ -84,6 +84,9 @@ export default function App() {
   // 2. Información y Ruta de la salida (Supabase RPC)
   const [info, setInfo] = useState<InfoSalida | null>(null);
   const [rutaData, setRutaData] = useState<RutaSalida | null>(null);
+  const rutaDataRef = useRef<RutaSalida | null>(null);
+  rutaDataRef.current = rutaData;
+  const indiceEnvioRef = useRef<number>(-1); // por qué tramo de la ruta va (para pegar a la calle lo que se manda)
   const [cargandoInfo, setCargandoInfo] = useState<boolean>(true);
   const [cargandoRespuestaSalida, setCargandoRespuestaSalida] = useState<boolean>(false);
   const [salidaVencida, setSalidaVencida] = useState<boolean>(false);
@@ -548,10 +551,17 @@ export default function App() {
       colaEnviosPendientesRef.current = [];
       // Enviar la posición más reciente
       try {
+        // se manda el punto ya pegado a la calle: así la tienda y el cliente también ven la moto en la vía
+        const r = rutaDataRef.current;
+        const enRuta = pegarALaRutaDesde([actual.lat, actual.lon], r?.ruta, indiceEnvioRef.current);
+        if (enRuta) {
+          indiceEnvioRef.current = enRuta.indice;
+        }
+        const punto = enRuta ? enRuta.punto : pegarALaCalle([actual.lat, actual.lon], null, r?.calles);
         const ok = await enviarPosicion(
           codigo,
-          actual.lat,
-          actual.lon,
+          punto[0],
+          punto[1],
           actual.precision,
           actual.rumbo,
           actual.velocidad
