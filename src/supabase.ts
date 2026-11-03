@@ -6,7 +6,7 @@ import { SalidaResumen, Parada, Mensaje, InfoSalida, RutaSalida, EstadoEntrega, 
 // ============================================================
 export const SUPABASE_URL: string = "https://xivokswlegxetxgovhdw.supabase.co";
 /** Clave pública de las notificaciones (VAPID). Vacía = la página no ofrece avisos. */
-export const VAPID_PUBLICA: string = '';
+export const VAPID_PUBLICA: string = 'BNBdC-dYdf6oEPT_XTO08bI4vhbVFbc8SRbCoE_go17VOT_xa9xXScUL4Z2pGqHUdesVH1spQKxesA64JvQkgTo';
 
 export const SUPABASE_KEY: string = "sb_publishable_iMN9hA3fCwQKXOe6Pp5rIA__uoCp2_K";
 
