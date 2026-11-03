@@ -276,9 +276,10 @@ export const MapaRuta: React.FC<MapaRutaProps> = ({
 
     // Crear marcador de moto si no existe
     const archivoSvgMoto =
+      // moto.svg mira a la izquierda (oeste) y moto-izq.svg a la derecha (este)
       orientacionMotoRef.current === 'oeste'
-        ? './iconos/moto-izq.svg'
-        : './iconos/moto.svg';
+        ? './iconos/moto.svg'
+        : './iconos/moto-izq.svg';
 
     const iconoMotoDiv = L.divIcon({
       className: 'domiruta-moto-marker',
