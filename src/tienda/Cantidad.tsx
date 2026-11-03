@@ -1,4 +1,5 @@
-import { Minus, Plus, Trash2 } from 'lucide-react';
+import { Minus, Plus } from 'lucide-react';
+import { Trash2 } from '../iconos/Icono';
 
 /** «– n +». Con 1, el «–» es una caneca para quitarlo. */
 export function Cantidad({ n, nombre, cambiar, grande = false }: {

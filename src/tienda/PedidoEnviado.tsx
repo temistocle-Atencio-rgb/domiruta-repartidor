@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Copy, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
+import { CheckCircle2, Copy } from '../iconos/Icono';
 import { EstadoPedido, EstadoPedidoTexto } from './tipos.ts';
 import { pesos, verPedido } from './datos.ts';
 

@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import { Parada } from '../types.ts';
 import { formatearPesos, subirFoto } from '../supabase.ts';
 import { comprimirFoto } from '../utils/image.ts';
-import { Phone, Navigation, RotateCcw, Check, XCircle, Camera } from 'lucide-react';
+import { Phone, Navigation, RotateCcw, Check, XCircle } from 'lucide-react';
+import { Camera } from '../iconos/Icono';
 
 interface TarjetaParadaProps {
   parada: Parada;

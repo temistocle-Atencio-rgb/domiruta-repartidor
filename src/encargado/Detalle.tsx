@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, Phone, MapPin, Printer, MessageCircle, ReceiptText, Send } from 'lucide-react';
+import { X, Phone, MapPin, Printer, MessageCircle, Send } from 'lucide-react';
+import { ReceiptText } from '../iconos/Icono';
 import { PedidoE, Tablero, accion, chat, escribir, enlaceComprobante, hace, MEDIO, pagaAntes, MensajeChat } from './datos.ts';
 import { pesos } from '../tienda/datos.ts';
 import { Foto } from '../tienda/Foto.tsx';

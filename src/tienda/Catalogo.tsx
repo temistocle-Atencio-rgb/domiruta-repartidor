@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Search, ShoppingCart, X, Clock, Bike, Store, MapPin } from 'lucide-react';
+import { X, Clock, Bike, MapPin } from 'lucide-react';
+import { Search, ShoppingCart, Store } from '../iconos/Icono';
 import { Catalogo as TCatalogo, Carrito, Producto } from './tipos.ts';
 import { pesos, sinTildes } from './datos.ts';
 import { Cantidad } from './Cantidad.tsx';

@@ -13,15 +13,8 @@ import {
   obtenerCacheMisSalidas,
   guardarCacheMisSalidas,
 } from '../utils/dispositivo.ts';
-import {
-  Download,
-  AlertTriangle,
-  RefreshCw,
-  Share2,
-  CheckCircle2,
-  Package,
-  ShoppingBag,
-} from 'lucide-react';
+import { Download, AlertTriangle, RefreshCw, Share2, ShoppingBag } from 'lucide-react';
+import { CheckCircle2, Package } from '../iconos/Icono';
 
 interface PantallaMisSalidasProps {
   enlace: string;

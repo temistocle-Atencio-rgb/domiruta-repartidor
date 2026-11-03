@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ArrowLeft, Bike, Store } from 'lucide-react';
+import { ArrowLeft, Bike } from 'lucide-react';
+import { Store } from '../iconos/Icono';
 import { Tienda, Producto, Entrega, PedidoNuevo } from './tipos.ts';
 import { pesos, hacerPedido, leerCliente, guardarCliente, borrarCliente } from './datos.ts';
 import { MapaPin } from './MapaPin.tsx';

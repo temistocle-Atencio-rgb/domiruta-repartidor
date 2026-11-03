@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Bike, Store, CheckSquare, Square } from 'lucide-react';
+import { Bike, CheckSquare, Square } from 'lucide-react';
+import { Store } from '../iconos/Icono';
 import { Tablero as TTablero, PedidoE, Columna, columna, hace, MEDIO, pagaAntes } from './datos.ts';
 import { pesos } from '../tienda/datos.ts';
 import { Asignar } from './Asignar.tsx';

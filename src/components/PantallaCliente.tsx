@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PedidoCliente } from '../types.ts';
 import { verPedido, verPedidoCodigo, formatearHoraEntrega } from '../supabase.ts';
 import { MapaCliente } from './MapaCliente.tsx';
-import { CheckCircle2, AlertOctagon, Package } from 'lucide-react';
+import { AlertOctagon } from 'lucide-react';
+import { CheckCircle2, Package } from '../iconos/Icono';
 
 interface PantallaClienteProps {
   enlace?: string | null;

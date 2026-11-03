@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Parada } from '../types.ts';
-import { ChevronDown, ChevronUp, RotateCcw, Check, XCircle, Camera } from 'lucide-react';
+import { ChevronDown, ChevronUp, RotateCcw, Check, XCircle } from 'lucide-react';
+import { Camera } from '../iconos/Icono';
 import { subirFoto } from '../supabase.ts';
 import { comprimirFoto } from '../utils/image.ts';
 

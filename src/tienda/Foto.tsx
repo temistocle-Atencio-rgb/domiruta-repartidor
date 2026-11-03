@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Package } from 'lucide-react';
+import { Package } from '../iconos/Icono';
 
 export function Foto({ src, alt, gris = false, className = '' }: { src: string | null; alt: string; gris?: boolean; className?: string }) {
   const [mala, setMala] = useState(false);

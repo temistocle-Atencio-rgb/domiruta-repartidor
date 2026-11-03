@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { X, ShoppingCart } from 'lucide-react';
+import { X } from 'lucide-react';
+import { ShoppingCart } from '../iconos/Icono';
 import { Producto, Tienda, Carrito as TCarrito } from './tipos.ts';
 import { pesos } from './datos.ts';
 import { Cantidad } from './Cantidad.tsx';
