@@ -10,7 +10,7 @@ export default defineConfig(() => {
     build: {
       rollupOptions: {
         // dos páginas: la del repartidor/cliente (index.html) y la tienda en línea (tienda.html)
-        input: { main: path.resolve(__dirname, 'index.html'), tienda: path.resolve(__dirname, 'tienda.html') },
+        input: { main: path.resolve(__dirname, 'index.html'), tienda: path.resolve(__dirname, 'tienda.html'), pedidos: path.resolve(__dirname, 'pedidos.html') },
       },
     },
     resolve: {
