@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ArrowLeft, Bike, Store, Banknote, Smartphone } from 'lucide-react';
+import { ArrowLeft, Bike, Store } from 'lucide-react';
 import { Tienda, Producto, Entrega, PedidoNuevo } from './tipos.ts';
 import { pesos, hacerPedido, leerCliente, guardarCliente } from './datos.ts';
 import { MapaPin } from './MapaPin.tsx';
+import { MEDIOS, mediosDe } from './pagos.ts';
 
 interface Props {
   tienda: Tienda;
@@ -26,7 +27,8 @@ export function DatosPedido({ tienda, lineas, subtotal, volver, listo, recargar 
   const [direccion, setDireccion] = useState(guardado.direccion);
   const [referencia, setReferencia] = useState(guardado.referencia);
   const [pos, setPos] = useState<{ lat: number; lon: number } | null>(null);
-  const [pago, setPago] = useState<'efectivo' | 'transferencia'>('efectivo');
+  const medios = mediosDe(tienda.pagos);
+  const [pago, setPago] = useState('efectivo');
   const [pagaCon, setPagaCon] = useState('');
   const [nota, setNota] = useState('');
   const [error, setError] = useState('');
@@ -121,11 +123,18 @@ export function DatosPedido({ tienda, lineas, subtotal, volver, listo, recargar 
 
         <section className="bg-white rounded-[5px] border border-[#E3E7EC] p-4 space-y-3">
           <h2 className="font-poppins font-semibold text-[16px]">¿Cómo pagas?</h2>
-          <div className="flex gap-2" role="radiogroup" aria-label="Cómo pagas">
-            <button type="button" role="radio" aria-checked={pago === 'efectivo'} onClick={() => setPago('efectivo')} className={opcion(pago === 'efectivo')}>
-              <Banknote size={18} />Efectivo</button>
-            <button type="button" role="radio" aria-checked={pago === 'transferencia'} onClick={() => setPago('transferencia')} className={opcion(pago === 'transferencia')}>
-              <Smartphone size={18} />Transferencia</button>
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Cómo pagas">
+            {medios.map((m) => {
+              const activo = pago === m;
+              return (
+                <button key={m} type="button" role="radio" aria-checked={activo} onClick={() => setPago(m)}
+                  className={`h-16 rounded-[5px] border-2 flex flex-col items-center justify-center gap-1 px-2 ${activo
+                    ? 'border-[#005198] bg-[#EAF2FA]' : 'border-[#E3E7EC] bg-white'}`}>
+                  <img src={`./pagos/${m}.png`} alt="" className="h-7 max-w-[90%] object-contain" />
+                  <span className={`text-[12px] font-poppins ${activo ? 'font-semibold text-[#003A73]' : 'font-medium text-[#5B6670]'}`}>{MEDIOS[m].texto}</span>
+                </button>
+              );
+            })}
           </div>
           {pago === 'efectivo' ? (
             <div><label className={etiqueta} htmlFor="t-paga">¿Con cuánto pagas? <span className="text-[#5B6670] font-normal">(para llevarte el cambio)</span></label>
@@ -134,7 +143,7 @@ export function DatosPedido({ tienda, lineas, subtotal, volver, listo, recargar 
               {pagaNum >= total && pagaNum > 0 && <p className="text-[13px] text-[#1E7A44] mt-1">Te llevamos {pesos(pagaNum - total)} de cambio.</p>}
             </div>
           ) : (
-            <p className="text-[14px] text-[#5B6670]">La tienda te escribe por WhatsApp con el número para transferir.</p>
+            <p className="text-[14px] text-[#5B6670]">{MEDIOS[pago]?.ayuda}</p>
           )}
           <div><label className={etiqueta} htmlFor="t-nota">Nota para la tienda <span className="text-[#5B6670] font-normal">(si quieres)</span></label>
             <textarea id="t-nota" className={campo + ' h-20 py-2 resize-none'} value={nota} onChange={(e) => setNota(e.target.value)} maxLength={300}

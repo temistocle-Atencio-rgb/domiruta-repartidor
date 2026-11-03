@@ -7,6 +7,7 @@ export interface Tienda {
   abierta: boolean;
   domicilio: number;
   minimo: number;
+  pagos?: string[];            // medios de pago activos en DomiRuta (efectivo, nequi, ...)
 }
 export interface Producto {
   id: number;
@@ -25,7 +26,7 @@ export interface PedidoNuevo {
   nombre: string; celular: string; correo: string;
   entrega: Entrega;
   direccion: string; referencia: string; lat: number | null; lon: number | null;
-  pago: 'efectivo' | 'transferencia'; pagaCon: number | null;
+  pago: string; pagaCon: number | null;
   nota: string; items: ItemPedido[];
 }
 export type EstadoPedidoTexto = 'nuevo' | 'aceptado' | 'preparando' | 'en_camino' | 'entregado' | 'cancelado';
