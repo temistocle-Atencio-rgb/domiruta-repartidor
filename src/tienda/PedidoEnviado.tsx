@@ -78,6 +78,18 @@ export function PedidoEnviado({ codigo, nombre, total, otroPedido }: Props) {
           </section>
         )}
 
+        {!noExiste && estado && estado.pago && !['efectivo', 'tarjeta_debito', 'tarjeta_credito'].includes(estado.pago)
+          && actual !== 'cancelado' && (
+          <section className="bg-white rounded-[5px] border border-[#E3E7EC] p-5">
+            <h2 className="font-poppins font-semibold text-[16px] mb-1">Tu pago</h2>
+            {estado.pagado
+              ? <p className="text-[#1E7A44] font-poppins font-semibold">Pago confirmado. ¡Gracias!</p>
+              : estado.comprobante
+                ? <p className="text-[14px]">Recibimos tu comprobante. La tienda lo está revisando.</p>
+                : <p className="text-[14px]">Te enviamos por WhatsApp los datos para pagar. Cuando pagues, <span className="font-semibold">envía la foto del comprobante por ese mismo chat</span>.</p>}
+          </section>
+        )}
+
         {!noExiste && (
           <section className="bg-white rounded-[5px] border border-[#E3E7EC] p-5" aria-live="polite">
             <h2 className="font-poppins font-semibold text-[16px] mb-3">Cómo va</h2>

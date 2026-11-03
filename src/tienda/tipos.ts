@@ -35,6 +35,7 @@ export type EstadoPedidoTexto = 'nuevo' | 'aceptado' | 'preparando' | 'en_camino
 export interface EstadoPedido {
   codigo: string; estado: EstadoPedidoTexto; total: number; creado: string;
   tienda: string; motivo: string; entrega: Entrega;
+  pago?: string; pagado?: boolean; comprobante?: boolean;
 }
 /** El carrito: id del producto → cantidad */
 export type Carrito = Record<number, number>;

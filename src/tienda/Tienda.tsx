@@ -42,6 +42,15 @@ export function Tienda() {
     try {
       const c = await verCatalogo();
       setCatalogo(c);
+      // «Escribir a la tienda» (botón de los WhatsApp automáticos): abre el WhatsApp de la tienda
+      if (new URLSearchParams(window.location.search).get('w')) {
+        const cel = c.tienda.telefono.replace(/\D/g, '');
+        if (/^3\d{9}$/.test(cel)) {
+          window.location.replace(`https://wa.me/57${cel}`);
+          return;
+        }
+        window.history.replaceState(null, '', window.location.pathname);
+      }
       if (c.tienda.nombre) document.title = `${c.tienda.nombre} · Pedidos en línea`;
       // el ícono de la pestaña es el logo de la tienda (el mismo de la factura)
       if (c.tienda.logo) {
