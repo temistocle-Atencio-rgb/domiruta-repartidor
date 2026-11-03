@@ -591,6 +591,9 @@ export default function App() {
   const quedanEnCamino = paradasEnCamino.length > 0;
   const todasTerminadas = paradas.length > 0 && paradasEnCamino.length === 0;
 
+  const procesarLecturaRef = useRef<(pos: GeolocationPosition) => void>(() => undefined);
+  const pidiendoGpsRef = useRef<boolean>(false);
+
   // watchPosition: activo mientras la salida esté aceptada y queden entregas
   useEffect(() => {
     if (!salidaAceptada || !quedanEnCamino || !ubicacionActiva || typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -601,8 +604,7 @@ export default function App() {
       return;
     }
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
+    const alLeer = (pos: GeolocationPosition) => {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
         const precision = pos.coords.accuracy || 20;
@@ -644,7 +646,10 @@ export default function App() {
         ultimoGpsTimestampRef.current = ahora;
         setPosicionMoto({ lat, lon });
         setGpsPerdido(false);
-      },
+      };
+    procesarLecturaRef.current = alLeer;
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      alLeer,
       (err) => {
         console.warn('Error en geolocalización:', err);
         setGpsPerdido(true);
@@ -688,6 +693,20 @@ export default function App() {
 
     const intervaloEnvio = setInterval(async () => {
       const actual = ultimaLecturaGpsRef.current;
+      // quieto, el celular deja de mandar lecturas: se le pide una nueva (así el cliente no pierde la moto)
+      if ((!actual || Date.now() - actual.timestamp > 10000) && !pidiendoGpsRef.current) {
+        pidiendoGpsRef.current = true;
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            pidiendoGpsRef.current = false;
+            procesarLecturaRef.current(pos);
+          },
+          () => {
+            pidiendoGpsRef.current = false;
+          },
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+        );
+      }
       // nada viejo (sin señal no se finge que sigue en vivo) y un envío a la vez (sin internet se demoran)
       if (!actual || enviandoRef.current || Date.now() - actual.timestamp > 15000) return;
       enviandoRef.current = true;

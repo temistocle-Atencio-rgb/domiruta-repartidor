@@ -62,6 +62,7 @@ export const MapaRuta: React.FC<MapaRutaProps> = ({
   const ultimoLonRef = useRef<number | null>(null);
   const ajustadoRef = useRef<boolean>(false);
   const indiceRutaRef = useRef<number>(-1); // por qué tramo de la ruta iba
+  const faltaLayerRef = useRef<L.Polyline | null>(null); // lo que le falta de la ruta (azul fuerte)
   const caminoRef = useRef<[number, number][]>([]); // puntos que le faltan por recorrer a la moto
   const velocidadRef = useRef<number>(0); // metros por milisegundo para llegar en ~1,2 s
 
@@ -100,16 +101,35 @@ export const MapaRuta: React.FC<MapaRutaProps> = ({
       rutaLayerRef.current = null;
     }
 
+    if (faltaLayerRef.current) {
+      faltaLayerRef.current.remove();
+      faltaLayerRef.current = null;
+    }
+
     if (rutaSalidaData?.ruta && rutaSalidaData.ruta.length > 1) {
+      // toda la ruta, suave (lo que ya recorrió se ve así)
       const poly = L.polyline(rutaSalidaData.ruta, {
         color: '#005198',
         weight: 5,
-        opacity: 0.85,
+        opacity: 0.25,
         lineCap: 'round',
         lineJoin: 'round',
       }).addTo(map);
-
       rutaLayerRef.current = poly;
+      // encima, en azul fuerte, lo que le falta (se recorta a medida que avanza la moto)
+      const desde = indiceRutaRef.current;
+      const falta =
+        desde >= 0 && posicionObjetivoRef.current
+          ? [posicionObjetivoRef.current, ...rutaSalidaData.ruta.slice(desde + 1)]
+          : rutaSalidaData.ruta;
+      faltaLayerRef.current = L.polyline(falta, {
+        color: '#005198',
+        weight: 5,
+        opacity: 0.9,
+        lineCap: 'round',
+        lineJoin: 'round',
+        interactive: false,
+      }).addTo(map);
     }
   }, [rutaSalidaData?.ruta]);
 
@@ -226,6 +246,9 @@ export const MapaRuta: React.FC<MapaRutaProps> = ({
     const enRuta = pegarALaRutaDesde(lectura, rutaSalidaData?.ruta, indiceRutaRef.current);
     if (enRuta) {
       indiceRutaRef.current = enRuta.indice;
+      if (faltaLayerRef.current && rutaSalidaData?.ruta) {
+        faltaLayerRef.current.setLatLngs([enRuta.punto, ...rutaSalidaData.ruta.slice(enRuta.indice + 1)]);
+      }
     }
     const puntoPegado = enRuta ? enRuta.punto : pegarALaCalle(lectura, null, rutaSalidaData?.calles);
 

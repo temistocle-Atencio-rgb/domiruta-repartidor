@@ -321,6 +321,7 @@ export const PantallaCliente: React.FC<PantallaClienteProps> = ({
             <MapaCliente
               destino={destino}
               moto={moto}
+              camino={pedido.camino ?? null}
               ubicacionPausada={ubicacion_pausada}
               className="h-[52vh] min-h-[260px] w-full"
             />

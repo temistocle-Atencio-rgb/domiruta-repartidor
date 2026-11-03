@@ -69,6 +69,8 @@ export interface PedidoCliente {
   repartidor: string;
   destino: { lat: number; lon: number } | null;
   moto: { lat: number; lon: number; rumbo: number | null; hora: string } | null;
+  /** Lo que le falta a la moto hasta la casa, por las calles (solo si este cliente es el siguiente). */
+  camino?: [number, number][] | null;
   ubicacion_pausada: boolean;
   entregada_en: string | null;
 }

@@ -17,6 +17,7 @@ interface MotoCliente {
 interface MapaClienteProps {
   destino: DestinoCliente | null;
   moto: MotoCliente | null;
+  camino?: [number, number][] | null;
   ubicacionPausada: boolean;
   className?: string;
 }
@@ -24,6 +25,7 @@ interface MapaClienteProps {
 export const MapaCliente: React.FC<MapaClienteProps> = ({
   destino,
   moto,
+  camino = null,
   ubicacionPausada,
   className = 'h-[50vh] min-h-[260px] w-full',
 }) => {
@@ -33,6 +35,7 @@ export const MapaCliente: React.FC<MapaClienteProps> = ({
   // Marcadores Leaflet
   const marcadorCasaRef = useRef<L.Marker | null>(null);
   const marcadorMotoRef = useRef<L.Marker | null>(null);
+  const caminoLayerRef = useRef<L.Polyline | null>(null);
 
   // Detección de si el usuario movió o alejó el mapa con sus dedos/mouse
   const usuarioInteractuoRef = useRef<boolean>(false);
@@ -257,6 +260,36 @@ export const MapaCliente: React.FC<MapaClienteProps> = ({
       map.setView([destino.lat, destino.lon], 16, { animate: true });
     }
   }, [destino, moto?.lat, moto?.lon, ubicacionPausada]);
+
+  // La línea azul de lo que le falta a la moto hasta la casa (por las calles; nunca de dónde viene)
+  const caminoClave = camino && camino.length > 1 ? JSON.stringify(camino) : '';
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    const valido =
+      !!camino &&
+      camino.length > 1 &&
+      camino.every((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    if (!valido || !moto || ubicacionPausada) {
+      caminoLayerRef.current?.remove();
+      caminoLayerRef.current = null;
+      return;
+    }
+    if (caminoLayerRef.current) {
+      caminoLayerRef.current.setLatLngs(camino as [number, number][]);
+    } else {
+      caminoLayerRef.current = L.polyline(camino as [number, number][], {
+        color: '#005198',
+        weight: 5,
+        opacity: 0.85,
+        lineCap: 'round',
+        lineJoin: 'round',
+        interactive: false,
+      }).addTo(map);
+      caminoLayerRef.current.bringToBack();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caminoClave, !!moto, ubicacionPausada]);
 
   const avisoUbicacionNoDisponible = !moto || ubicacionPausada;
 
