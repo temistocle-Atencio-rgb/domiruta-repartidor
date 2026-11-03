@@ -29,6 +29,7 @@ export const ModalCorregirUbicacion: React.FC<ModalCorregirUbicacionProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const pinMarkerRef = useRef<L.Marker | null>(null);
+  const motoMarkerRef = useRef<L.Marker | null>(null);
 
   // Punto viejo de la parada
   const puntoViejoLat = typeof parada.lat === 'number' ? parada.lat : 11.5444;
@@ -92,19 +93,6 @@ export const ModalCorregirUbicacion: React.FC<ModalCorregirUbicacionProps> = ({
       interactive: false,
     }).addTo(map);
 
-    // Moto en la posición actual del repartidor si tiene GPS
-    if (posicionGps) {
-      const motoIcon = L.icon({
-        iconUrl: './iconos/moto.svg',
-        iconSize: [38, 38],
-        iconAnchor: [19, 19],
-      });
-      L.marker([posicionGps.lat, posicionGps.lon], {
-        icon: motoIcon,
-        interactive: false,
-      }).addTo(map);
-    }
-
     // Pin de la parada (cliente.svg, 38x48 px, anclado abajo al centro) que se puede arrastrar
     const clienteIcon = L.icon({
       iconUrl: './iconos/cliente.svg',
@@ -141,8 +129,27 @@ export const ModalCorregirUbicacion: React.FC<ModalCorregirUbicacionProps> = ({
     return () => {
       map.remove();
       mapInstanceRef.current = null;
+      pinMarkerRef.current = null;
+      motoMarkerRef.current = null;
     };
-  }, [puntoViejoLat, puntoViejoLon, posicionGps]);
+    // el mapa se arma una sola vez: si se rearma con cada lectura del GPS, el pin vuelve a su sitio
+  }, [puntoViejoLat, puntoViejoLon]);
+
+  // La moto se mueve sola con el GPS, sin tocar el mapa ni el pin
+  const gpsLat = posicionGps?.lat;
+  const gpsLon = posicionGps?.lon;
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || gpsLat === undefined || gpsLon === undefined) return;
+    if (motoMarkerRef.current) {
+      motoMarkerRef.current.setLatLng([gpsLat, gpsLon]);
+    } else {
+      motoMarkerRef.current = L.marker([gpsLat, gpsLon], {
+        icon: L.icon({ iconUrl: './iconos/moto.svg', iconSize: [38, 38], iconAnchor: [19, 19] }),
+        interactive: false,
+      }).addTo(map);
+    }
+  }, [gpsLat, gpsLon]);
 
   // Mover el pin a la posición del repartidor
   const handleMoverAGps = () => {
