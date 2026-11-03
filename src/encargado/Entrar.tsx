@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { ClipboardList } from 'lucide-react';
 import { entrar } from './datos.ts';
 
 export function Entrar({ listo, aviso }: { listo: () => void; aviso: string }) {
@@ -23,7 +22,7 @@ export function Entrar({ listo, aviso }: { listo: () => void; aviso: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <form onSubmit={enviar} className="w-full max-w-sm bg-white rounded-[5px] border border-[#E3E7EC] p-6">
-        <ClipboardList size={36} className="text-[#005198]" aria-hidden="true" />
+        <img src="./iconos/pedidos.png" alt="" width={72} height={72} aria-hidden="true" />
         <h1 className="font-poppins font-semibold text-[22px] text-[#003A73] mt-3">Pedidos en línea</h1>
         <p className="text-[14px] text-[#5B6670] mt-1">Entra con tu celular y la clave de 6 números que te dio la tienda.</p>
         <label className="block text-[14px] font-medium mt-5 mb-1" htmlFor="e-cel">Celular</label>
