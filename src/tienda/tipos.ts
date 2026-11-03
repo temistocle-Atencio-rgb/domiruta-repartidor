@@ -18,6 +18,8 @@ export interface Producto {
   precio: number;
   foto: string | null;
   disponible: boolean;
+  codigo?: string;             // código de barras (como el PLU del D1)
+  caracteristicas?: { n: string; v: string }[];  // las de la ficha en DomiRuta
 }
 export interface Catalogo { tienda: Tienda; productos: Producto[] }
 export interface ItemPedido { id: number; cantidad: number }

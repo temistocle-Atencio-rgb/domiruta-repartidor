@@ -8,7 +8,7 @@ export function Pie({ tienda }: { tienda: Tienda }) {
   const wa = /^3\d{9}$/.test(cel) ? `https://wa.me/57${cel}` : '';
   return (
     <footer className="mt-8 bg-white border-t border-[#E3E7EC]">
-      <div className="max-w-5xl mx-auto px-4 py-6 grid gap-6 min-[700px]:grid-cols-2">
+      <div className="max-w-7xl mx-auto px-4 py-6 grid gap-6 min-[700px]:grid-cols-2">
         <div>
           <div className="flex items-center gap-3">
             {tienda.logo && <img src={tienda.logo} alt="" className="w-12 h-12 object-contain" />}

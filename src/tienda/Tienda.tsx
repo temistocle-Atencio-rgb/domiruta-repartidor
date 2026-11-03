@@ -6,7 +6,6 @@ import { Catalogo } from './Catalogo.tsx';
 import { Carrito } from './Carrito.tsx';
 import { DatosPedido } from './DatosPedido.tsx';
 import { PedidoEnviado } from './PedidoEnviado.tsx';
-import { DetalleProducto } from './DetalleProducto.tsx';
 
 type Pantalla = 'catalogo' | 'datos' | 'enviado';
 
@@ -20,7 +19,19 @@ export function Tienda() {
   const [error, setError] = useState('');
   const [carrito, setCarrito] = useState<TCarrito>(leerCarrito);
   const [verCarrito, setVerCarrito] = useState(false);
-  const [detalle, setDetalle] = useState<Producto | null>(null);
+  const [detalleId, setDetalleId] = useState<number | null>(() => {
+    const v = Number(new URLSearchParams(window.location.search).get('producto'));
+    return Number.isInteger(v) && v > 0 ? v : null;
+  });
+  // la ficha tiene su propia dirección (?producto=12): el botón «atrás» del celular vuelve a la lista
+  useEffect(() => {
+    const alVolver = () => {
+      const v = Number(new URLSearchParams(window.location.search).get('producto'));
+      setDetalleId(Number.isInteger(v) && v > 0 ? v : null);
+    };
+    window.addEventListener('popstate', alVolver);
+    return () => window.removeEventListener('popstate', alVolver);
+  }, []);
   const inicial = codigoDeLaDireccion() ?? leerUltimoPedido();
   const [pantalla, setPantalla] = useState<Pantalla>(inicial ? 'enviado' : 'catalogo');
   const [enviado, setEnviado] = useState<{ codigo: string; total: number; nombre: string } | null>(
@@ -61,7 +72,16 @@ export function Tienda() {
     });
   }, []);
   const cerrarCarrito = useCallback(() => setVerCarrito(false), []);
-  const cerrarDetalle = useCallback(() => setDetalle(null), []);
+  const verProducto = useCallback((p: Producto) => {
+    window.history.pushState({ producto: p.id }, '', `?producto=${p.id}`);
+    setDetalleId(p.id);
+  }, []);
+  const cerrarProducto = useCallback(() => {
+    if (new URLSearchParams(window.location.search).get('producto')) {
+      window.history.pushState(null, '', window.location.pathname);
+    }
+    setDetalleId(null);
+  }, []);
 
   if (pantalla === 'enviado' && enviado) {
     return <PedidoEnviado {...enviado} otroPedido={() => {
@@ -102,11 +122,8 @@ export function Tienda() {
   return (
     <>
       <Catalogo catalogo={catalogo} carrito={carrito} cambiar={cambiar} abrirCarrito={() => setVerCarrito(true)}
-        subtotal={subtotal} unidades={unidades} verProducto={setDetalle} />
-      {detalle && (
-        <DetalleProducto p={porId.get(detalle.id) ?? detalle} n={carrito[detalle.id] || 0} cambiar={(n) => cambiar(detalle.id, n)}
-          cerrar={cerrarDetalle} verCarrito={() => { setDetalle(null); setVerCarrito(true); }} />
-      )}
+        subtotal={subtotal} unidades={unidades} verProducto={verProducto}
+        producto={detalleId != null ? porId.get(detalleId) ?? null : null} cerrarProducto={cerrarProducto} />
       {verCarrito && (
         <Carrito tienda={catalogo.tienda} lineas={lineas} carrito={carrito} cambiar={cambiar} vaciar={() => setCarrito({})}
           cerrar={cerrarCarrito} subtotal={subtotal}
