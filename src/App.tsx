@@ -32,6 +32,7 @@ import { PantallaConsultarPedido } from './components/PantallaConsultarPedido.ts
 import { PantallaMisSalidas } from './components/PantallaMisSalidas.tsx';
 import { PegarEnlace } from './components/PegarEnlace.tsx';
 import { PantallaEntrar } from './components/PantallaEntrar.tsx';
+import { CambiarClave } from './components/CambiarClave.tsx';
 import { leerSesion, salir } from './supabase.ts';
 import {
   obtenerIdDispositivo,
@@ -1236,7 +1237,8 @@ export default function App() {
             dispositivo={dispositivoId}
             onAbrirSalida={handleAbrirSalida}
           />
-          <div className="bg-[#F2F4F7] text-center pb-8">
+          <div className="bg-[#F2F4F7] text-center pb-8 px-4 space-y-1">
+            <CambiarClave />
             <button
               type="button"
               onClick={() => {
