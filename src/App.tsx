@@ -30,6 +30,7 @@ import { ModalCorregirUbicacion } from './components/ModalCorregirUbicacion.tsx'
 import { PantallaCliente } from './components/PantallaCliente.tsx';
 import { PantallaConsultarPedido } from './components/PantallaConsultarPedido.tsx';
 import { PantallaMisSalidas } from './components/PantallaMisSalidas.tsx';
+import { PegarEnlace } from './components/PegarEnlace.tsx';
 import {
   obtenerIdDispositivo,
   obtenerEnlaceGuardado,
@@ -92,8 +93,22 @@ export default function App() {
     const enlaceGuardado = obtenerEnlaceGuardado();
     const enlaceRepartidor = paramR || enlaceGuardado;
 
+    // la app instalada abre sin enlace: si este celular ya abrió una salida, vuelve a ella
+    let codigoSalida = paramS;
+    if (paramS) {
+      safeSetStorage('domiruta_ultima_salida', paramS);
+    } else if (!esP && !enlaceRepartidor) {
+      const ultima = safeGetStorage('domiruta_ultima_salida');
+      if (ultima) {
+        codigoSalida = ultima;
+        const url = new URL(window.location.href);
+        url.searchParams.set('s', ultima);
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+
     return {
-      codigo: paramS,
+      codigo: codigoSalida,
       esCliente: esP,
       enlaceCliente: paramP,
       enlaceRepartidor,
@@ -134,6 +149,7 @@ export default function App() {
     const url = new URL(window.location.href);
     url.searchParams.set('s', codigoSalida);
     url.searchParams.delete('r');
+    safeSetStorage('domiruta_ultima_salida', codigoSalida);
     window.history.pushState({}, '', url.toString());
     setParamsState((prev) => ({
       ...prev,
@@ -1156,6 +1172,7 @@ export default function App() {
               Abre el enlace que te mandó la tienda por WhatsApp.
             </p>
           </div>
+          <PegarEnlace />
         </div>
       </main>
     );

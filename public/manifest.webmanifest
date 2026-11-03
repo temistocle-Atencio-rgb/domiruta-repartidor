@@ -4,6 +4,7 @@
   "start_url": "./?app=1",
   "scope": "./",
   "display": "standalone",
+  "launch_handler": { "client_mode": ["navigate-existing", "auto"] },
   "background_color": "#F2F4F7",
   "theme_color": "#003A73",
   "lang": "es",
