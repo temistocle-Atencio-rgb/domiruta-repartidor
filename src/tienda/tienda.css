@@ -1,0 +1,8 @@
+/* En la tienda el cliente sí puede seleccionar y copiar (el código del pedido, la dirección) */
+body { user-select: text; }
+select:focus-visible { outline: 2px solid #005198; outline-offset: 2px; }
+.sin-barra { scrollbar-width: none; }
+.sin-barra::-webkit-scrollbar { display: none; }
+.hoja-sube { animation: hoja-sube 180ms ease-out; }
+@keyframes hoja-sube { from { transform: translateY(32px); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .hoja-sube { animation: none; } }

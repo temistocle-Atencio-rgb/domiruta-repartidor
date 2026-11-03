@@ -7,6 +7,12 @@ export default defineConfig(() => {
   return {
     base: './',
     plugins: [react(), tailwindcss()],
+    build: {
+      rollupOptions: {
+        // dos páginas: la del repartidor/cliente (index.html) y la tienda en línea (tienda.html)
+        input: { main: path.resolve(__dirname, 'index.html'), tienda: path.resolve(__dirname, 'tienda.html') },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

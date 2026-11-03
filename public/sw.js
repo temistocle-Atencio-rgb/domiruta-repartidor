@@ -73,7 +73,9 @@ self.addEventListener('fetch', (event) => {
           if (networkResponse && networkResponse.status === 200) {
             // una sola copia de la página (si no, se guarda una por cada enlace ?s=, ?p= o ?r=)
             const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', responseClone));
+            // la tienda en línea es otra página: no se guarda encima de la del repartidor
+            const esTienda = url.pathname.endsWith('/tienda.html');
+            caches.open(CACHE_NAME).then((cache) => cache.put(esTienda ? req : './index.html', responseClone));
           }
           return networkResponse;
         })
