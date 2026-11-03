@@ -17,6 +17,20 @@ function aBase64Url(buf: ArrayBuffer | null): string {
   return btoa(t).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+/** Si el celular ya tiene los avisos activados, lo vuelve a registrar en Supabase (en cualquier pantalla). */
+export async function registrarAvisosOtraVez(): Promise<boolean> {
+  try {
+    if (!VAPID_PUBLICA || !('serviceWorker' in navigator) || !('Notification' in window)) return false;
+    if (Notification.permission !== 'granted') return false;
+    const r = await navigator.serviceWorker.ready;
+    const sub = await r.pushManager.getSubscription();
+    if (!sub) return false;
+    return await guardarSuscripcion('', '', sub.endpoint, aBase64Url(sub.getKey('p256dh')), aBase64Url(sub.getKey('auth')));
+  } catch {
+    return false;
+  }
+}
+
 interface Props {
   enlace: string;
   dispositivo: string;
@@ -36,11 +50,15 @@ export function AvisosPush({ enlace, dispositivo, esIos, esStandalone }: Props) 
   useEffect(() => {
     if (!soporta || !VAPID_PUBLICA) return;
     if (Notification.permission === 'denied') setEstado('bloqueado');
-    // si ya está suscrito, no se vuelve a ofrecer
+    // si este celular ya tiene los avisos, se vuelve a registrar en Supabase cada vez (al entrar con la clave,
+    // Supabase borra los celulares viejos: sin esto, el aviso no le llegaría con la app cerrada)
     navigator.serviceWorker.ready
       .then((r) => r.pushManager.getSubscription())
-      .then((s) => {
-        if (s && Notification.permission === 'granted') setEstado('listo');
+      .then(async (s) => {
+        if (!s || Notification.permission !== 'granted') return;
+        const ok = await guardarSuscripcion(enlace, dispositivo, s.endpoint, aBase64Url(s.getKey('p256dh')),
+          aBase64Url(s.getKey('auth')));
+        setEstado(ok ? 'listo' : 'inicial'); // si no se pudo, vuelve a salir el botón
       })
       .catch(() => undefined);
   }, [soporta]);

@@ -33,6 +33,7 @@ import { PantallaMisSalidas } from './components/PantallaMisSalidas.tsx';
 import { PegarEnlace } from './components/PegarEnlace.tsx';
 import { PantallaEntrar } from './components/PantallaEntrar.tsx';
 import { CambiarClave } from './components/CambiarClave.tsx';
+import { registrarAvisosOtraVez } from './components/AvisosPush.tsx';
 import { leerSesion, salir } from './supabase.ts';
 import {
   obtenerIdDispositivo,
@@ -124,6 +125,10 @@ export default function App() {
   const [haySesion, setHaySesion] = useState<boolean>(() => !!leerSesion());
   const [avisoSesion, setAvisoSesion] = useState<string | null>(null);
   const [noEsTuya, setNoEsTuya] = useState<boolean>(false);
+  // con sesión: el celular queda registrado para los avisos aunque no abra «Mis salidas»
+  useEffect(() => {
+    if (haySesion) registrarAvisosOtraVez();
+  }, [haySesion]);
   useEffect(() => {
     const cerrada = () => {
       setHaySesion(false);
