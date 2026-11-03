@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Bike, Store } from 'lucide-react';
 import { Tienda, Producto, Entrega, PedidoNuevo } from './tipos.ts';
-import { pesos, hacerPedido, leerCliente, guardarCliente } from './datos.ts';
+import { pesos, hacerPedido, leerCliente, guardarCliente, borrarCliente } from './datos.ts';
 import { MapaPin } from './MapaPin.tsx';
 import { MEDIOS, mediosDe } from './pagos.ts';
 
@@ -19,16 +19,19 @@ const campo = 'w-full h-12 rounded-[5px] border border-[#C7CED6] bg-white px-3 t
 const etiqueta = 'block text-[14px] font-medium mb-1';
 
 export function DatosPedido({ tienda, lineas, subtotal, volver, listo, recargar }: Props) {
-  const guardado = leerCliente();
+  const [guardado] = useState(leerCliente);
+  const conocido = guardado.nombre.length >= 2 && guardado.celular.length >= 10;
   const [nombre, setNombre] = useState(guardado.nombre);
   const [celular, setCelular] = useState(guardado.celular);
   const [correo, setCorreo] = useState(guardado.correo);
-  const [entrega, setEntrega] = useState<Entrega>('domicilio');
+  const [entrega, setEntrega] = useState<Entrega>(guardado.entrega);
   const [direccion, setDireccion] = useState(guardado.direccion);
   const [referencia, setReferencia] = useState(guardado.referencia);
-  const [pos, setPos] = useState<{ lat: number; lon: number } | null>(null);
+  const [pos, setPos] = useState<{ lat: number; lon: number } | null>(
+    guardado.lat != null && guardado.lon != null ? { lat: guardado.lat, lon: guardado.lon } : null);
   const medios = mediosDe(tienda.pagos);
-  const [pago, setPago] = useState('efectivo');
+  const [pago, setPago] = useState(medios.includes(guardado.pago) ? guardado.pago : 'efectivo');
+  const [olvidado, setOlvidado] = useState(false);
   const [pagaCon, setPagaCon] = useState('');
   const [nota, setNota] = useState('');
   const [error, setError] = useState('');
@@ -62,7 +65,8 @@ export function DatosPedido({ tienda, lineas, subtotal, volver, listo, recargar 
       items: lineas.map(({ p: x, n }) => ({ id: x.id, cantidad: n })),
     };
     setEnviando(true);
-    guardarCliente({ nombre: p.nombre, celular: cel, correo: p.correo, direccion: direccion.trim(), referencia: referencia.trim() });
+    guardarCliente({ nombre: p.nombre, celular: cel, correo: p.correo, direccion: direccion.trim(), referencia: referencia.trim(),
+      lat: pos?.lat ?? guardado.lat, lon: pos?.lon ?? guardado.lon, entrega, pago });
     const r = await hacerPedido(p);
     setEnviando(false);
     if ('codigo' in r) { listo(r.codigo, r.total, p.nombre); return; }
@@ -87,7 +91,16 @@ export function DatosPedido({ tienda, lineas, subtotal, volver, listo, recargar 
 
       <form onSubmit={enviar} noValidate className="max-w-lg mx-auto px-4 pt-4 space-y-4">
         <section className="bg-white rounded-[5px] border border-[#E3E7EC] p-4 space-y-3">
-          <h2 className="font-poppins font-semibold text-[16px]">Tus datos</h2>
+          <h2 className="font-poppins font-semibold text-[16px]">{conocido && !olvidado ? `Hola de nuevo, ${guardado.nombre.split(' ')[0]}` : 'Tus datos'}</h2>
+          {conocido && !olvidado && (
+            <p className="text-[13px] text-[#5B6670] -mt-2">Dejamos tus datos de la vez pasada. Revisa que estén bien.{' '}
+              <button type="button" className="text-[#005198] underline underline-offset-2 min-h-11"
+                onClick={() => {
+                  borrarCliente(); setOlvidado(true);
+                  setNombre(''); setCelular(''); setCorreo(''); setDireccion(''); setReferencia(''); setPos(null);
+                }}>No soy yo: borrar</button>
+            </p>
+          )}
           <div><label className={etiqueta} htmlFor="t-nombre">Nombre</label>
             <input id="t-nombre" className={campo} value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={80} autoComplete="name" /></div>
           <div><label className={etiqueta} htmlFor="t-cel">Celular (WhatsApp)</label>

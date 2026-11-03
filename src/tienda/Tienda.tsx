@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { Catalogo as TCatalogo, Carrito as TCarrito } from './tipos.ts';
+import { Catalogo as TCatalogo, Carrito as TCarrito, Producto } from './tipos.ts';
 import { verCatalogo, leerCarrito, guardarCarrito, leerUltimoPedido, guardarUltimoPedido } from './datos.ts';
 import { Catalogo } from './Catalogo.tsx';
 import { Carrito } from './Carrito.tsx';
 import { DatosPedido } from './DatosPedido.tsx';
 import { PedidoEnviado } from './PedidoEnviado.tsx';
+import { DetalleProducto } from './DetalleProducto.tsx';
 
 type Pantalla = 'catalogo' | 'datos' | 'enviado';
 
@@ -19,6 +20,7 @@ export function Tienda() {
   const [error, setError] = useState('');
   const [carrito, setCarrito] = useState<TCarrito>(leerCarrito);
   const [verCarrito, setVerCarrito] = useState(false);
+  const [detalle, setDetalle] = useState<Producto | null>(null);
   const inicial = codigoDeLaDireccion() ?? leerUltimoPedido();
   const [pantalla, setPantalla] = useState<Pantalla>(inicial ? 'enviado' : 'catalogo');
   const [enviado, setEnviado] = useState<{ codigo: string; total: number; nombre: string } | null>(
@@ -30,6 +32,11 @@ export function Tienda() {
       const c = await verCatalogo();
       setCatalogo(c);
       if (c.tienda.nombre) document.title = `${c.tienda.nombre} · Pedidos en línea`;
+      // el ícono de la pestaña es el logo de la tienda (el mismo de la factura)
+      if (c.tienda.logo) {
+        const l = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+        if (l) l.href = c.tienda.logo;
+      }
     } catch (e) {
       setError((e as Error).message);
     }
@@ -54,6 +61,7 @@ export function Tienda() {
     });
   }, []);
   const cerrarCarrito = useCallback(() => setVerCarrito(false), []);
+  const cerrarDetalle = useCallback(() => setDetalle(null), []);
 
   if (pantalla === 'enviado' && enviado) {
     return <PedidoEnviado {...enviado} otroPedido={() => {
@@ -94,7 +102,11 @@ export function Tienda() {
   return (
     <>
       <Catalogo catalogo={catalogo} carrito={carrito} cambiar={cambiar} abrirCarrito={() => setVerCarrito(true)}
-        subtotal={subtotal} unidades={unidades} />
+        subtotal={subtotal} unidades={unidades} verProducto={setDetalle} />
+      {detalle && (
+        <DetalleProducto p={porId.get(detalle.id) ?? detalle} n={carrito[detalle.id] || 0} cambiar={(n) => cambiar(detalle.id, n)}
+          cerrar={cerrarDetalle} verCarrito={() => { setDetalle(null); setVerCarrito(true); }} />
+      )}
       {verCarrito && (
         <Carrito tienda={catalogo.tienda} lineas={lineas} carrito={carrito} cambiar={cambiar} vaciar={() => setCarrito({})}
           cerrar={cerrarCarrito} subtotal={subtotal}

@@ -4,6 +4,7 @@ import { Catalogo as TCatalogo, Carrito, Producto } from './tipos.ts';
 import { pesos, sinTildes } from './datos.ts';
 import { Cantidad } from './Cantidad.tsx';
 import { Foto } from './Foto.tsx';
+import { Pie } from './Pie.tsx';
 
 interface Props {
   catalogo: TCatalogo;
@@ -12,9 +13,10 @@ interface Props {
   abrirCarrito: () => void;
   subtotal: number;
   unidades: number;
+  verProducto: (p: Producto) => void;
 }
 
-export function Catalogo({ catalogo, carrito, cambiar, abrirCarrito, subtotal, unidades }: Props) {
+export function Catalogo({ catalogo, carrito, cambiar, abrirCarrito, subtotal, unidades, verProducto }: Props) {
   const { tienda, productos } = catalogo;
   const [buscar, setBuscar] = useState('');
   const [categoria, setCategoria] = useState('');
@@ -52,8 +54,8 @@ export function Catalogo({ catalogo, carrito, cambiar, abrirCarrito, subtotal, u
         <div className="max-w-5xl mx-auto px-4 pt-3 pb-3">
           <div className="flex items-center gap-3">
             {tienda.logo
-              ? <img src={tienda.logo} alt="" className="w-10 h-10 rounded-[5px] bg-white object-contain" />
-              : <div className="w-10 h-10 rounded-[5px] bg-white flex items-center justify-center"><Store size={22} className="text-[#005198]" /></div>}
+              ? <img src={tienda.logo} alt="" className="w-11 h-11 object-contain shrink-0" />
+              : <Store size={28} className="text-white shrink-0" aria-hidden="true" />}
             <div className="min-w-0 flex-1">
               <h1 className="font-poppins font-semibold text-[17px] leading-tight truncate">{tienda.nombre || 'Tienda en línea'}</h1>
               <p className={`text-[13px] font-medium ${tienda.abierta ? 'text-[#9FE0B8]' : 'text-[#FFC9C9]'}`}>
@@ -143,12 +145,14 @@ export function Catalogo({ catalogo, carrito, cambiar, abrirCarrito, subtotal, u
             {g.nombre && <h2 className="font-poppins font-semibold text-[17px] text-[#003A73] px-1 mb-2">{g.nombre}</h2>}
             <div className="grid grid-cols-2 min-[600px]:grid-cols-3 min-[900px]:grid-cols-4 gap-2.5">
               {g.items.map((p) => (
-                <Tarjeta key={p.id} p={p} n={carrito[p.id] || 0} cambiar={(n) => cambiar(p.id, n)} />
+                <Tarjeta key={p.id} p={p} n={carrito[p.id] || 0} cambiar={(n) => cambiar(p.id, n)} ver={() => verProducto(p)} />
               ))}
             </div>
           </section>
         ))}
       </main>
+
+      <Pie tienda={tienda} />
 
       {/* El único botón naranja de esta pantalla */}
       {unidades > 0 && (
@@ -164,14 +168,17 @@ export function Catalogo({ catalogo, carrito, cambiar, abrirCarrito, subtotal, u
   );
 }
 
-function Tarjeta({ p, n, cambiar }: { p: Producto; n: number; cambiar: (n: number) => void }) {
+function Tarjeta({ p, n, cambiar, ver }: { p: Producto; n: number; cambiar: (n: number) => void; ver: () => void }) {
   return (
-    <article className="bg-white rounded-[5px] border border-[#E3E7EC] p-2.5 flex flex-col">
-      <Foto src={p.foto} alt={p.nombre} gris={!p.disponible} className="aspect-square rounded-[5px]" />
-      {p.marca && <p className="mt-2 text-[12px] text-[#5B6670] truncate">{p.marca}</p>}
-      <h3 className={`${p.marca ? '' : 'mt-2'} text-[14px] leading-snug line-clamp-2 min-h-[2.6em]`}>{p.nombre}</h3>
-      {p.descripcion && <p className="text-[12px] text-[#5B6670] line-clamp-1">{p.descripcion}</p>}
-      <p className="font-poppins font-bold text-[17px] mt-1 mb-2">{pesos(p.precio)}</p>
+    <article className="bg-white rounded-[5px] border border-[#E3E7EC] p-2.5 flex flex-col hover:border-[#9CC3E8]">
+      {/* foto y nombre abren la ficha del producto */}
+      <button type="button" onClick={ver} aria-label={`Ver ${p.nombre}`} className="text-left rounded-[5px] flex flex-col">
+        <Foto src={p.foto} alt={p.nombre} gris={!p.disponible} className="aspect-square rounded-[5px] w-full" />
+        {p.marca && <p className="mt-2 text-[12px] text-[#5B6670] truncate">{p.marca}</p>}
+        <h3 className={`${p.marca ? '' : 'mt-2'} text-[14px] leading-snug line-clamp-2 min-h-[2.6em]`}>{p.nombre}</h3>
+        {p.descripcion && <p className="text-[12px] text-[#5B6670] line-clamp-1">{p.descripcion}</p>}
+        <p className="font-poppins font-bold text-[17px] mt-1 mb-2">{pesos(p.precio)}</p>
+      </button>
       <div className="mt-auto">
         {!p.disponible
           ? <p className="h-11 flex items-center justify-center text-[#B03030] font-poppins font-semibold text-[14px]">Agotado</p>

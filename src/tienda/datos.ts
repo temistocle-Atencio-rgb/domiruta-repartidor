@@ -64,10 +64,21 @@ export const leerCarrito = (): Carrito => {
 };
 export const guardarCarrito = (c: Carrito) => guardar('domiruta_carrito', c);
 
-export interface DatosCliente { nombre: string; celular: string; correo: string; direccion: string; referencia: string }
-export const leerCliente = (): DatosCliente =>
-  ({ nombre: '', celular: '', correo: '', direccion: '', referencia: '', ...leer<Partial<DatosCliente>>('domiruta_cliente', {}) });
+/** Lo que se recuerda en el celular del cliente para no volver a escribirlo (nunca sale de su celular). */
+export interface DatosCliente {
+  nombre: string; celular: string; correo: string; direccion: string; referencia: string;
+  lat: number | null; lon: number | null; entrega: 'domicilio' | 'retiro'; pago: string;
+}
+const VACIO: DatosCliente = { nombre: '', celular: '', correo: '', direccion: '', referencia: '', lat: null, lon: null, entrega: 'domicilio', pago: 'efectivo' };
+export const leerCliente = (): DatosCliente => {
+  const d = { ...VACIO, ...leer<Partial<DatosCliente>>('domiruta_cliente', {}) };
+  if (typeof d.lat !== 'number' || typeof d.lon !== 'number' || Math.abs(d.lat) > 90 || Math.abs(d.lon) > 180) { d.lat = null; d.lon = null; }
+  if (d.entrega !== 'retiro') d.entrega = 'domicilio';
+  if (typeof d.pago !== 'string') d.pago = 'efectivo';
+  return d;
+};
 export const guardarCliente = (d: DatosCliente) => guardar('domiruta_cliente', d);
+export const borrarCliente = () => guardar('domiruta_cliente', null);
 
 export const leerUltimoPedido = (): string | null => leer<string | null>('domiruta_ultimo_pedido', null);
 export const guardarUltimoPedido = (c: string | null) => guardar('domiruta_ultimo_pedido', c);
