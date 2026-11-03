@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Parada } from '../types.ts';
 import { ChevronDown, ChevronUp, RotateCcw, Check, XCircle, Camera } from 'lucide-react';
+import { subirFoto } from '../supabase.ts';
+import { comprimirFoto } from '../utils/image.ts';
 
 interface SeccionHechasProps {
   paradasHechas: Parada[];
@@ -8,6 +10,9 @@ interface SeccionHechasProps {
   fotosEnMemoria: Record<string | number, string>;
   onDeshacer: (parada: Parada) => void;
   onVerFotoGrande: (url: string, nombre: string) => void;
+  codigo: string;
+  onFotoSubidaExito: (paradaId: string | number, dataUrl: string) => void;
+  onMostrarError: (msg: string) => void;
 }
 
 export const SeccionHechas: React.FC<SeccionHechasProps> = ({
@@ -16,8 +21,12 @@ export const SeccionHechas: React.FC<SeccionHechasProps> = ({
   fotosEnMemoria,
   onDeshacer,
   onVerFotoGrande,
+  codigo,
+  onFotoSubidaExito,
+  onMostrarError,
 }) => {
   const [abierta, setAbierta] = useState(false);
+  const [subiendo, setSubiendo] = useState<string | number | null>(null);
 
   if (paradasHechas.length === 0) return null;
 
@@ -91,6 +100,44 @@ export const SeccionHechas: React.FC<SeccionHechasProps> = ({
 
                 {/* Derecha: Miniatura de foto (si hay) y enlace Deshacer */}
                 <div className="flex items-center gap-2.5 flex-shrink-0">
+                  {parada.estado === 'entregado' && !parada.tiene_foto && !parada.pendiente_envio && (
+                    // la foto de la entrega (prueba de que llegó): se toma después de marcar «Entregué»
+                    <label
+                      className={`min-h-[44px] px-2.5 flex items-center gap-1.5 text-[#005198] font-inter text-[13.5px] font-medium rounded-[5px] cursor-pointer hover:underline focus-within:ring-2 focus-within:ring-[#005198] ${subiendo === parada.id ? 'opacity-50 pointer-events-none' : ''}`}
+                    >
+                      <Camera className="w-4 h-4" strokeWidth={2} />
+                      <span>{subiendo === parada.id ? 'Enviando…' : 'Foto'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="sr-only"
+                        aria-label={`Tomar foto de la entrega de ${parada.nombre}`}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          if (!file) return;
+                          setSubiendo(parada.id);
+                          try {
+                            const dataUrl = await comprimirFoto(file);
+                            if (await subirFoto(codigo, parada.id, dataUrl)) {
+                              onFotoSubidaExito(parada.id, dataUrl);
+                            } else {
+                              onMostrarError('No se pudo subir la foto. Revisa el internet');
+                            }
+                          } catch (err: unknown) {
+                            onMostrarError(
+                              err instanceof Error && err.message === 'La foto es muy pesada. Toma otra'
+                                ? err.message
+                                : 'No se pudo subir la foto. Revisa el internet'
+                            );
+                          } finally {
+                            setSubiendo(null);
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
                   {parada.tiene_foto && (
                     foto ? (
                       <button

@@ -1571,6 +1571,9 @@ export default function App() {
               fotosEnMemoria={fotosEnMemoria}
               onDeshacer={handleDeshacer}
               onVerFotoGrande={(url, nombre) => setFotoVisor({ url, nombre })}
+              codigo={codigo ?? ''}
+              onFotoSubidaExito={handleFotoSubidaExito}
+              onMostrarError={(msg) => setMensajeErrorAccion(msg)}
             />
           </div>
         ) : (
@@ -1682,6 +1685,9 @@ export default function App() {
                 fotosEnMemoria={fotosEnMemoria}
                 onDeshacer={handleDeshacer}
                 onVerFotoGrande={(url, nombre) => setFotoVisor({ url, nombre })}
+                codigo={codigo ?? ''}
+                onFotoSubidaExito={handleFotoSubidaExito}
+                onMostrarError={(msg) => setMensajeErrorAccion(msg)}
               />
             </div>
           </>
