@@ -1262,7 +1262,8 @@ export default function App() {
   // CASO H: Salida ya cerrada por la tienda
   // ========================================================
   if (!cargandoInicial && !cargandoInfo && salidaCerradaOVacia) {
-    if (resumenGuardado) {
+    // aunque este celular nunca la haya abierto antes (por ejemplo, un enlace viejo que la tienda reemplazó)
+    {
       return (
         <div className="min-h-screen bg-[#F2F4F7] flex flex-col items-center justify-center p-4">
           <div className="w-full max-w-sm bg-white rounded-[5px] border border-[#E3E7EC] shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-6 text-center space-y-4">
@@ -1284,14 +1285,18 @@ export default function App() {
                 Salida cerrada
               </h1>
               <p className="font-inter text-[15px] text-[#1F2933] leading-snug m-0">
-                La tienda ya cerró esta salida. ¡Gracias!
+                {resumenGuardado
+                  ? 'La tienda ya cerró esta salida. ¡Gracias!'
+                  : 'Este enlace ya no tiene entregas: la tienda cerró la salida o te mandó un enlace nuevo. Abre el último enlace que te llegó.'}
               </p>
             </div>
-            <div className="pt-3 border-t border-[#E3E7EC] font-inter text-[14px] text-[#5B6670] leading-relaxed">
-              Entregadas: <strong className="text-[#1F2933]">{resumenGuardado.entregadas}</strong> ·{' '}
-              No entregadas: <strong className="text-[#1F2933]">{resumenGuardado.noEntregadas}</strong> ·{' '}
-              Cobraste: <strong className="text-[#003A73]">{formatearPesos(resumenGuardado.plataCobrada)}</strong>
-            </div>
+            {resumenGuardado && (
+              <div className="pt-3 border-t border-[#E3E7EC] font-inter text-[14px] text-[#5B6670] leading-relaxed">
+                Entregadas: <strong className="text-[#1F2933]">{resumenGuardado.entregadas}</strong> ·{' '}
+                No entregadas: <strong className="text-[#1F2933]">{resumenGuardado.noEntregadas}</strong> ·{' '}
+                Cobraste: <strong className="text-[#003A73]">{formatearPesos(resumenGuardado.plataCobrada)}</strong>
+              </div>
+            )}
           </div>
         </div>
       );
