@@ -31,6 +31,8 @@ import { PantallaCliente } from './components/PantallaCliente.tsx';
 import { PantallaConsultarPedido } from './components/PantallaConsultarPedido.tsx';
 import { PantallaMisSalidas } from './components/PantallaMisSalidas.tsx';
 import { PegarEnlace } from './components/PegarEnlace.tsx';
+import { PantallaEntrar } from './components/PantallaEntrar.tsx';
+import { leerSesion, salir } from './supabase.ts';
 import {
   obtenerIdDispositivo,
   obtenerEnlaceGuardado,
@@ -116,6 +118,24 @@ export default function App() {
   });
 
   const { codigo, esCliente, enlaceCliente, enlaceRepartidor } = paramsState;
+
+  // Sesión del repartidor (celular + clave). Si se cierra (entró en otro celular, le cambiaron la clave), pide entrar.
+  const [haySesion, setHaySesion] = useState<boolean>(() => !!leerSesion());
+  const [avisoSesion, setAvisoSesion] = useState<string | null>(null);
+  const [noEsTuya, setNoEsTuya] = useState<boolean>(false);
+  useEffect(() => {
+    const cerrada = () => {
+      setHaySesion(false);
+      setAvisoSesion('Tu sesión se cerró: entraste en otro celular o la tienda te cambió la clave. Vuelve a entrar.');
+    };
+    const ajena = () => setNoEsTuya(true);
+    window.addEventListener('domiruta-sesion-cerrada', cerrada);
+    window.addEventListener('domiruta-no-es-tuya', ajena);
+    return () => {
+      window.removeEventListener('domiruta-sesion-cerrada', cerrada);
+      window.removeEventListener('domiruta-no-es-tuya', ajena);
+    };
+  }, []);
 
   // Escuchar popstate (atrás / adelante en el historial del celular)
   useEffect(() => {
@@ -1154,16 +1174,83 @@ export default function App() {
   }
 
   // ========================================================
+  // Sin sesión: entra con su celular y su clave (la página del cliente no la pide)
+  // ========================================================
+  if (!haySesion) {
+    return (
+      <PantallaEntrar
+        dispositivo={dispositivoId}
+        aviso={avisoSesion}
+        onEntro={() => window.location.reload()} // todo se vuelve a cargar ya con la sesión
+      />
+    );
+  }
+
+  if (noEsTuya) {
+    return (
+      <main className="min-h-screen bg-[#F2F4F7] flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-sm bg-white rounded-[5px] border border-[#E3E7EC] shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-6 text-center space-y-4">
+          <h1 className="font-poppins font-bold text-[19px] text-[#003A73] leading-tight m-0">
+            Esta salida es de otro repartidor
+          </h1>
+          <p className="font-inter text-[14.5px] text-[#5B6670] m-0 leading-relaxed">
+            Con tu cuenta no puedes verla. Si es tuya, entra con tu celular y tu clave.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setNoEsTuya(false);
+              handleVolverAMisSalidas();
+            }}
+            className="w-full min-h-[48px] bg-[#005198] hover:bg-[#003A73] text-white rounded-[5px] font-poppins font-semibold text-[15px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#005198] focus:ring-offset-2"
+          >
+            Ir a mis salidas
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              salir().then(() => {
+                setNoEsTuya(false);
+                setAvisoSesion(null);
+                setHaySesion(false);
+              });
+            }}
+            className="w-full min-h-[48px] text-[#005198] rounded-[5px] font-poppins font-medium text-[14px] cursor-pointer hover:underline focus:outline-none focus:ring-2 focus:ring-[#005198]"
+          >
+            Entrar con otra cuenta
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  // ========================================================
   // CASO C: Enlace sin parámetro `s` (o acceso directo a Mis salidas / PWA)
   // ========================================================
   if (!codigo) {
-    if (enlaceRepartidor) {
+    if (enlaceRepartidor || haySesion) {
       return (
-        <PantallaMisSalidas
-          enlace={enlaceRepartidor}
-          dispositivo={dispositivoId}
-          onAbrirSalida={handleAbrirSalida}
-        />
+        <>
+          <PantallaMisSalidas
+            enlace={enlaceRepartidor ?? ''}
+            dispositivo={dispositivoId}
+            onAbrirSalida={handleAbrirSalida}
+          />
+          <div className="bg-[#F2F4F7] text-center pb-8">
+            <button
+              type="button"
+              onClick={() => {
+                salir().then(() => {
+                  setAvisoSesion(null);
+                  setHaySesion(false);
+                });
+              }}
+              className="min-h-[48px] px-4 text-[#005198] font-poppins font-medium text-[14px] cursor-pointer hover:underline focus:outline-none focus:ring-2 focus:ring-[#005198] rounded-[5px]"
+            >
+              Cerrar sesión en este celular
+            </button>
+          </div>
+        </>
       );
     }
 

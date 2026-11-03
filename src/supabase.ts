@@ -46,7 +46,7 @@ export async function infoSalida(codigo: string): Promise<InfoSalida | null> {
   }
 
   try {
-    const { data, error } = await client.rpc('info_salida', { p_codigo: codigo });
+    const { data, error } = await rpcRep(client, 'info_salida', { p_codigo: codigo });
     if (error) {
       console.error('Error en supabase.rpc info_salida:', error);
       throw error;
@@ -74,7 +74,7 @@ export async function rutaSalida(codigo: string): Promise<RutaSalida | null> {
   }
 
   try {
-    const { data, error } = await client.rpc('ruta_salida', { p_codigo: codigo });
+    const { data, error } = await rpcRep(client, 'ruta_salida', { p_codigo: codigo });
     if (error) {
       console.error('Error en supabase.rpc ruta_salida:', error);
       return null;
@@ -105,7 +105,7 @@ export async function responderSalida(
   if (!client) {
     throw new Error('La página no está configurada. Avísale a la tienda.');
   }
-  const { data, error } = await client.rpc('responder_salida', {
+  const { data, error } = await rpcRep(client, 'responder_salida', {
     p_codigo: codigo,
     p_acepta: acepta,
     p_motivo: motivo,
@@ -126,7 +126,7 @@ export async function verSalida(codigo: string): Promise<Parada[]> {
     throw new Error('La página no está configurada. Avísale a la tienda.');
   }
 
-  const { data, error } = await client.rpc('ver_salida', { p_codigo: codigo });
+  const { data, error } = await rpcRep(client, 'ver_salida', { p_codigo: codigo });
   if (error) {
     console.error('Error en supabase.rpc ver_salida:', error);
     throw error;
@@ -151,7 +151,7 @@ export async function enviarPosicion(
   }
 
   try {
-    const { data, error } = await client.rpc('enviar_posicion', {
+    const { data, error } = await rpcRep(client, 'enviar_posicion', {
       p_codigo: codigo,
       p_lat: lat,
       p_lon: lon,
@@ -182,7 +182,7 @@ export async function pausarUbicacion(codigo: string, pausar: boolean): Promise<
   }
 
   try {
-    const { data, error } = await client.rpc('pausar_ubicacion', {
+    const { data, error } = await rpcRep(client, 'pausar_ubicacion', {
       p_codigo: codigo,
       p_pausar: pausar,
     });
@@ -227,7 +227,7 @@ export async function marcarEntregaDetalle(
     return 'sin_red';
   }
   try {
-    const { data, error } = await client.rpc('marcar_entrega_gps', {
+    const { data, error } = await rpcRep(client, 'marcar_entrega_gps', {
       p_codigo: codigo,
       p_id: id,
       p_estado: estado,
@@ -257,7 +257,7 @@ export async function verMensajes(codigo: string, desdeId: number): Promise<Mens
   }
 
   try {
-    const { data, error } = await client.rpc('ver_mensajes', {
+    const { data, error } = await rpcRep(client, 'ver_mensajes', {
       p_codigo: codigo,
       p_desde: desdeId,
     });
@@ -284,7 +284,7 @@ export async function enviarMensaje(codigo: string, texto: string): Promise<bool
   }
 
   try {
-    const { data, error } = await client.rpc('enviar_mensaje', {
+    const { data, error } = await rpcRep(client, 'enviar_mensaje', {
       p_codigo: codigo,
       p_texto: texto,
     });
@@ -315,7 +315,7 @@ export async function subirFoto(
   }
 
   try {
-    const { data, error } = await client.rpc('subir_foto', {
+    const { data, error } = await rpcRep(client, 'subir_foto', {
       p_codigo: codigo,
       p_id: id,
       p_foto: fotoDataUrl,
@@ -456,7 +456,7 @@ export async function misSalidas(
   }
 
   try {
-    const { data, error } = await client.rpc('mis_salidas', {
+    const { data, error } = await rpcRep(client, 'mis_salidas', {
       p_enlace: enlace,
       p_dispositivo: dispositivo,
     });
@@ -539,7 +539,7 @@ export async function cambiarDisponible(
   if (!client) return false;
 
   try {
-    const { data, error } = await client.rpc('cambiar_disponible', {
+    const { data, error } = await rpcRep(client, 'cambiar_disponible', {
       p_enlace: enlace,
       p_dispositivo: dispositivo,
       p_disponible: disponible,
@@ -574,7 +574,7 @@ export async function corregirUbicacion(
   }
 
   try {
-    const { data, error } = await client.rpc('corregir_ubicacion', {
+    const { data, error } = await rpcRep(client, 'corregir_ubicacion', {
       p_codigo: codigo,
       p_id: id,
       p_lat: lat,
@@ -611,7 +611,7 @@ export async function guardarSuscripcion(
 ): Promise<boolean> {
   const client = getSupabaseClient();
   if (!client) return false;
-  const { data, error } = await client.rpc('guardar_suscripcion', {
+  const { data, error } = await rpcRep(client, 'guardar_suscripcion', {
     p_enlace: enlace,
     p_dispositivo: dispositivo,
     p_endpoint: endpoint,
@@ -623,4 +623,89 @@ export async function guardarSuscripcion(
     return false;
   }
   return data === true;
+}
+
+// -------------------------------------------------------------
+// Sesión del repartidor: entra con su celular y su clave (una sola sesión a la vez)
+// -------------------------------------------------------------
+const CLAVE_SESION = 'domiruta_sesion';
+
+export function leerSesion(): string | null {
+  try {
+    const v = localStorage.getItem(CLAVE_SESION);
+    return v && v.length === 64 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function guardarSesion(v: string | null): void {
+  try {
+    if (v) localStorage.setItem(CLAVE_SESION, v);
+    else localStorage.removeItem(CLAVE_SESION);
+  } catch {
+    // sin almacenamiento: tendrá que entrar cada vez
+  }
+}
+
+/** Lo que el repartidor hace, con su sesión. Si la sesión se cerró, la página vuelve a pedir la clave. */
+async function rpcRep(client: SupabaseClient, nombre: string, args: Record<string, unknown>) {
+  const resto: Record<string, unknown> = { ...args };
+  delete resto.p_enlace; // con la sesión ya no hacen falta el enlace personal ni el celular
+  delete resto.p_dispositivo;
+  const sesion = leerSesion();
+  if (!sesion) {
+    // sin sesión no se pregunta nada (la página está pidiendo entrar)
+    return { data: null, error: { message: 'sin_sesion', details: '', hint: '', code: '' } } as unknown as Awaited<
+      ReturnType<SupabaseClient['rpc']>
+    >;
+  }
+  const r = await client.rpc('rep_' + nombre, { p_sesion: sesion, ...resto });
+  const msj = r.error?.message ?? '';
+  if (msj.includes('sesion_cerrada')) {
+    guardarSesion(null);
+    window.dispatchEvent(new Event('domiruta-sesion-cerrada'));
+  } else if (msj.includes('no_es_tuya')) {
+    window.dispatchEvent(new Event('domiruta-no-es-tuya'));
+  }
+  return r;
+}
+
+export type ResultadoEntrar =
+  | { ok: true; nombre: string }
+  | { ok: false; error: 'datos' | 'clave' | 'bloqueado' | 'red'; quedan?: number; minutos?: number };
+
+export async function entrar(celular: string, clave: string, dispositivo: string): Promise<ResultadoEntrar> {
+  const client = getSupabaseClient();
+  if (!client) return { ok: false, error: 'red' };
+  const { data, error } = await client.rpc('entrar', { p_celular: celular, p_clave: clave, p_dispositivo: dispositivo });
+  if (error || !data) return { ok: false, error: 'red' };
+  const d = data as { ok: boolean; sesion?: string; nombre?: string; error?: string; quedan?: number; minutos?: number };
+  if (d.ok && d.sesion) {
+    guardarSesion(d.sesion);
+    return { ok: true, nombre: d.nombre ?? '' };
+  }
+  const e = d.error === 'clave' || d.error === 'bloqueado' || d.error === 'datos' ? d.error : 'red';
+  return { ok: false, error: e, quedan: d.quedan, minutos: d.minutos };
+}
+
+export async function salir(): Promise<void> {
+  const client = getSupabaseClient();
+  const v = leerSesion();
+  guardarSesion(null);
+  if (client && v) {
+    try {
+      await client.rpc('salir', { p_sesion: v });
+    } catch {
+      // igual queda sin sesión en este celular
+    }
+  }
+}
+
+export async function cambiarClave(actual: string, nueva: string): Promise<string> {
+  const client = getSupabaseClient();
+  if (!client) return 'Sin conexión';
+  const { data, error } = await client.rpc('cambiar_clave', { p_sesion: leerSesion() ?? '', p_actual: actual, p_nueva: nueva });
+  if (error) return error.message.includes('sesion_cerrada') ? 'Tu sesión se cerró: vuelve a entrar' : 'Revisa el internet';
+  return String(data);
 }
