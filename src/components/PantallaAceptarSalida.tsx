@@ -63,7 +63,7 @@ export const PantallaAceptarSalida: React.FC<PantallaAceptarSalidaProps> = ({
             Esta salida ya no está disponible
           </h1>
           <p className="font-inter text-[14px] text-[#5B6670] m-0">
-            El tiempo para responder venció o la salida fue asignada a otro repartidor.
+            El tiempo para aceptarla se acabó (la tienda da unos minutos) o la tienda se la pasó a otro domiciliario. Si es tuya, pídele a la tienda que te la vuelva a mandar: el enlace nuevo te llega por WhatsApp.
           </p>
         </div>
       </main>

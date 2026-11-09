@@ -1,11 +1,19 @@
 // DomiRuta Service Worker
-const CACHE_NAME = 'domiruta-v3';
+const CACHE_NAME = 'domiruta-v4';
 
 // Recursos esenciales que se pre-cachean al instalar
 const PRECACHE_ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './tienda.html',
+  './tienda.webmanifest',
+  './pedidos.html',
+  './pedidos.webmanifest',
+  './iconos/tienda-192.png',
+  './iconos/tienda-512.png',
+  './iconos/pedidos-192.png',
+  './iconos/pedidos-512.png',
   './iconos/app-192.png',
   './iconos/app-512.png',
   './iconos/app-512-maskable.png',
@@ -16,6 +24,13 @@ const PRECACHE_ASSETS = [
   './iconos/cliente-entregado.svg',
   './iconos/cliente-no-entregado.svg'
 ];
+
+// La página que es (sin lo que va después de «?»): así cada app instalada abre la suya sin internet
+function pagina(url) {
+  if (url.pathname.endsWith('/tienda.html')) return './tienda.html';
+  if (url.pathname.endsWith('/pedidos.html')) return './pedidos.html';
+  return './index.html';
+}
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -73,14 +88,13 @@ self.addEventListener('fetch', (event) => {
           if (networkResponse && networkResponse.status === 200) {
             // una sola copia de la página (si no, se guarda una por cada enlace ?s=, ?p= o ?r=)
             const responseClone = networkResponse.clone();
-            // la tienda en línea es otra página: no se guarda encima de la del repartidor
-            const esTienda = url.pathname.endsWith('/tienda.html');
-            caches.open(CACHE_NAME).then((cache) => cache.put(esTienda ? req : './index.html', responseClone));
+            // una copia por página (repartidor, tienda, pedidos): ninguna se guarda encima de otra
+            caches.open(CACHE_NAME).then((cache) => cache.put(pagina(url), responseClone));
           }
           return networkResponse;
         })
         .catch(async () => {
-          const cached = await caches.match(req);
+          const cached = (await caches.match(pagina(url))) || (await caches.match(req, { ignoreSearch: true }));
           if (cached) return cached;
           const fallback = await caches.match('./index.html');
           if (fallback) return fallback;

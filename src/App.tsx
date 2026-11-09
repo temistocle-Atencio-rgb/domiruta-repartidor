@@ -1211,7 +1211,8 @@ export default function App() {
             Esta salida es de otro repartidor
           </h1>
           <p className="font-inter text-[14.5px] text-[#5B6670] m-0 leading-relaxed">
-            Con tu cuenta no puedes verla. Si es tuya, entra con tu celular y tu clave.
+            Con tu cuenta no puedes verla. Si es tuya, pídele a la tienda que te la vuelva a mandar (o entra con tu
+            celular y tu clave si abriste otra cuenta).
           </p>
           <button
             type="button"
@@ -1316,8 +1317,15 @@ export default function App() {
             Esta salida ya no está disponible
           </h1>
           <p className="font-inter text-[14px] text-[#5B6670] m-0">
-            El tiempo para responder venció o la salida fue asignada a otro repartidor.
+            El tiempo para aceptarla se acabó (la tienda da unos minutos) o la tienda se la pasó a otro domiciliario. Si es tuya, pídele a la tienda que te la vuelva a mandar: el enlace nuevo te llega por WhatsApp.
           </p>
+          <button
+            type="button"
+            onClick={handleVolverAMisSalidas}
+            className="w-full min-h-[48px] bg-[#005198] hover:bg-[#003A73] text-white rounded-[5px] font-poppins font-semibold text-[15px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#005198] focus:ring-offset-2"
+          >
+            Ir a mis salidas
+          </button>
         </div>
       </main>
     );

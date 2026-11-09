@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { entrar } from '../supabase.ts';
+import { BotonInstalar } from './BotonInstalar.tsx';
 
 interface Props {
   dispositivo: string;
@@ -13,6 +14,8 @@ export function PantallaEntrar({ dispositivo, aviso, onEntro }: Props) {
   const [clave, setClave] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [entrando, setEntrando] = useState(false);
+  // vino del enlace de una salida (?s=): al entrar se abre esa salida
+  const conSalida = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('s');
 
   const soloNumeros = (t: string, max: number) => t.replace(/\D/g, '').slice(0, max);
 
@@ -62,6 +65,11 @@ export function PantallaEntrar({ dispositivo, aviso, onEntro }: Props) {
           <h1 className="font-poppins font-bold text-[20px] text-[#003A73] leading-tight m-0">DomiRuta Repartidor</h1>
         </div>
         {aviso && <p className="font-inter text-[14px] text-[#8A4B00] m-0 leading-snug">{aviso}</p>}
+        {!aviso && conSalida && (
+          <p className="font-inter text-[14px] text-[#1F2933] m-0 leading-snug">
+            La tienda te mandó una salida. Entra con tu celular y tu clave para verla.
+          </p>
+        )}
         <div className="space-y-1.5">
           <label htmlFor="celular" className="block font-inter text-[14px] font-medium text-[#1F2933]">
             Tu celular
@@ -108,6 +116,9 @@ export function PantallaEntrar({ dispositivo, aviso, onEntro }: Props) {
           ¿No tienes clave o se te olvidó? Pídesela a la tienda.
         </p>
       </form>
+      <div className="w-full max-w-sm mt-3">
+        <BotonInstalar nombre="la app" />
+      </div>
     </main>
   );
 }

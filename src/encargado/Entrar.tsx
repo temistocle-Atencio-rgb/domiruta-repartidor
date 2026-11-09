@@ -1,3 +1,4 @@
+import { BotonInstalar } from '../components/BotonInstalar.tsx';
 import { useState } from 'react';
 import { entrar } from './datos.ts';
 
@@ -28,7 +29,7 @@ export function Entrar({ listo, aviso }: { listo: () => void; aviso: string }) {
     setEnviando(false);
   };
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4">
       <form onSubmit={enviar} className="w-full max-w-sm bg-white rounded-[5px] border border-[#E3E7EC] p-6">
         <img src="./iconos/pedidos.png" alt="" width={72} height={72} aria-hidden="true" />
         <h1 className="font-poppins font-semibold text-[22px] text-[#003A73] mt-3">Pedidos en línea</h1>
@@ -45,6 +46,9 @@ export function Entrar({ listo, aviso }: { listo: () => void; aviso: string }) {
           {enviando ? 'Entrando…' : 'Entrar'}
         </button>
       </form>
+      <div className="w-full max-w-sm mt-3">
+        <BotonInstalar nombre="Pedidos en línea" />
+      </div>
     </div>
   );
 }

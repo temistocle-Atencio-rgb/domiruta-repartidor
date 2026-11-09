@@ -1,6 +1,7 @@
 import { MapPin, Phone, Clock } from 'lucide-react';
 import { Tienda } from './tipos.ts';
 import { MEDIOS, mediosDe } from './pagos.ts';
+import { BotonInstalar } from '../components/BotonInstalar.tsx';
 
 /** Abajo de la tienda: cómo encontrarla, cómo escribirle y con qué se puede pagar. */
 export function Pie({ tienda }: { tienda: Tienda }) {
@@ -37,6 +38,9 @@ export function Pie({ tienda }: { tienda: Tienda }) {
             ))}
           </ul>
           <p className="mt-2 text-[13px] text-[#5B6670]">El domiciliario lleva el cambio si pagas en efectivo.</p>
+          <div className="mt-4 max-w-sm">
+            <BotonInstalar nombre="la tienda" />
+          </div>
         </div>
       </div>
       <p className="border-t border-[#E3E7EC] text-center text-[12px] text-[#5B6670] py-3 px-4">

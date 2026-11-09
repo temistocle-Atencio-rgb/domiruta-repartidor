@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RespuestaMisSalidas, SalidaResumen } from '../types.ts';
 import { AvisosPush } from './AvisosPush.tsx';
 import { avisarConSonido } from '../utils/aviso.ts';
+import { alCambiar, instalar, sePuedeInstalar } from '../utils/instalar.ts';
 import {
   misSalidas,
   confirmarDispositivo,
@@ -68,24 +69,15 @@ export function PantallaMisSalidas({
   // Detección de instalación y beforeinstallprompt
   // -------------------------------------------------------------
   useEffect(() => {
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
-    };
+    // el aviso de Chrome llega muy temprano: se guarda en utils/instalar desde que carga la página
+    const ver = () => setDeferredPrompt(sePuedeInstalar() ? true : null);
+    ver();
+    return alCambiar(ver);
   }, []);
 
   const handleInstalarPwa = async () => {
     if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const choiceResult = await deferredPrompt.userChoice;
-      if (choiceResult.outcome === 'accepted') {
-        setDeferredPrompt(null);
-      }
+      if (await instalar()) setDeferredPrompt(null);
     } else if (esIos) {
       setMostrarGuiaIos((prev) => !prev);
     }
