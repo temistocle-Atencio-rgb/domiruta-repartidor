@@ -72,6 +72,7 @@ export const PantallaAceptarSalida: React.FC<PantallaAceptarSalidaProps> = ({
 
   const totalEntregas = paradas.length;
   const totalCobrar = paradas.reduce((sum, p) => sum + (p.cobrar || 0), 0);
+  const totalGanancia = paradas.reduce((sum, p) => sum + (p.ganancia || 0), 0);
   const direccionesAMostrar = paradas.slice(0, 5);
   const direccionesRestantes = totalEntregas > 5 ? totalEntregas - 5 : 0;
 
@@ -213,6 +214,11 @@ export const PantallaAceptarSalida: React.FC<PantallaAceptarSalidaProps> = ({
               <span className="block font-poppins font-bold text-[18px] text-[#003A73]">
                 COBRAR {formatearPesos(totalCobrar)}
               </span>
+              {totalGanancia > 0 && (
+                <span className="block font-inter text-[14px] font-semibold text-[#1E7A44]">
+                  Tu ganancia {formatearPesos(totalGanancia)}
+                </span>
+              )}
               <span className="font-inter text-xs text-[#5B6670]">
                 {totalEntregas} {totalEntregas === 1 ? 'entrega' : 'entregas'}
                 {textoDistancia ? ` · ${textoDistancia}` : ''}

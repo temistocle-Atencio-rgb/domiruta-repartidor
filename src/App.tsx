@@ -432,11 +432,15 @@ export default function App() {
           const plataTotal = ordenadas
             .filter((p) => p.estado === 'entregado')
             .reduce((sum, p) => sum + (p.cobrar || 0), 0);
+          const gananciaTotal = ordenadas
+            .filter((p) => p.estado === 'entregado')
+            .reduce((sum, p) => sum + (p.ganancia || 0), 0);
 
           const nuevoResumen: ResumenSalidaGuardado = {
             entregadas: entregadasCount,
             noEntregadas: noEntregadasCount,
             plataCobrada: plataTotal,
+            ganancia: gananciaTotal,
           };
           setResumenGuardado(nuevoResumen);
           safeSetStorage(`domiruta_salida_${codigo}`, JSON.stringify(nuevoResumen));
@@ -1118,6 +1122,13 @@ export default function App() {
       .filter((p) => p.estado === 'entregado')
       .reduce((acumulado, p) => acumulado + (p.cobrar || 0), 0);
   }, [paradas]);
+  // lo que es de él (sus domicilios o su tarifa por entrega): no se lo entrega a la tienda
+  const miGanancia = useMemo(() => {
+    return paradas
+      .filter((p) => p.estado === 'entregado')
+      .reduce((acumulado, p) => acumulado + (p.ganancia || 0), 0);
+  }, [paradas]);
+  const aLaTienda = plataATraer - miGanancia;
 
   // Formato para hora de creación en el chat
   const horaSalidaChatTexto = useMemo(() => {
@@ -1425,6 +1436,11 @@ export default function App() {
                 Entregadas: <strong className="text-[#1F2933]">{resumenGuardado.entregadas}</strong> ·{' '}
                 No entregadas: <strong className="text-[#1F2933]">{resumenGuardado.noEntregadas}</strong> ·{' '}
                 Cobraste: <strong className="text-[#003A73]">{formatearPesos(resumenGuardado.plataCobrada)}</strong>
+                {(resumenGuardado.ganancia ?? 0) > 0 && (
+                  <>
+                    {' '}· Tu ganancia: <strong className="text-[#1E7A44]">{formatearPesos(resumenGuardado.ganancia ?? 0)}</strong>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -1561,8 +1577,17 @@ export default function App() {
                 </h2>
               ) : (
                 <h2 className="font-poppins font-bold text-[22px] text-[#1E7A44] leading-snug m-0">
-                  Terminaste. Regresa a la tienda con {formatearPesos(plataATraer)}
+                  {aLaTienda > 0
+                    ? `Terminaste. Regresa a la tienda con ${formatearPesos(aLaTienda)}`
+                    : aLaTienda < 0
+                      ? `Terminaste. La tienda te paga ${formatearPesos(-aLaTienda)}`
+                      : 'Terminaste. Regresa a la tienda'}
                 </h2>
+              )}
+              {miGanancia > 0 && (
+                <p className="font-inter text-[15px] text-[#1F2933] mt-2 mb-0">
+                  Cobraste {formatearPesos(plataATraer)} · <strong className="text-[#1E7A44]">tu ganancia es {formatearPesos(miGanancia)}</strong>
+                </p>
               )}
               <p className="font-inter text-[14px] text-[#5B6670] mt-2 mb-0">
                 Todas las paradas han sido atendidas.
@@ -1782,7 +1807,7 @@ export default function App() {
 
       {/* Resumen fijo en la parte inferior */}
       {!cargandoInicial && totalParadas > 0 && !todasTerminadas && (
-        <ResumenFijo totalPlataATraer={plataATraer} />
+        <ResumenFijo cobrado={plataATraer} ganancia={miGanancia} />
       )}
     </div>
   );

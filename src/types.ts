@@ -14,6 +14,8 @@ export interface Parada {
   lat?: number | null;
   lon?: number | null;
   cobrar: number;
+  /** Lo que gana el domiciliario si la entrega (sus domicilios o su tarifa por entrega); 0 = sueldo. */
+  ganancia?: number;
   paga_con: number;
   cambio_de?: number | null;
   estado: EstadoEntrega;
@@ -59,6 +61,7 @@ export interface ResumenSalidaGuardado {
   entregadas: number;
   noEntregadas: number;
   plataCobrada: number;
+  ganancia?: number;
 }
 
 export interface PedidoCliente {
