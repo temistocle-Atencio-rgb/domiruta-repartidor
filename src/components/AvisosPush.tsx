@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { VAPID_PUBLICA, guardarSuscripcion } from '../supabase.ts';
 
 /** Clave base64url a bytes (lo que pide pushManager.subscribe). */
-function claveABytes(base64: string): Uint8Array<ArrayBuffer> {
+export function claveABytes(base64: string): Uint8Array<ArrayBuffer> {
   const relleno = '='.repeat((4 - (base64.length % 4)) % 4);
   const b = atob((base64 + relleno).replace(/-/g, '+').replace(/_/g, '/'));
   const r = new Uint8Array(new ArrayBuffer(b.length));
@@ -10,7 +10,7 @@ function claveABytes(base64: string): Uint8Array<ArrayBuffer> {
   return r;
 }
 
-function aBase64Url(buf: ArrayBuffer | null): string {
+export function aBase64Url(buf: ArrayBuffer | null): string {
   if (!buf) return '';
   let t = '';
   new Uint8Array(buf).forEach((x) => (t += String.fromCharCode(x)));

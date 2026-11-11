@@ -90,3 +90,11 @@ export function pesos(v: number): string {
 export function sinTildes(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
+
+/** El cliente pide que le avisen cuando cambie su pedido (notificación al celular). */
+export async function activarAvisosPedido(codigo: string, endpoint: string, p256dh: string, auth: string): Promise<boolean> {
+  const sb = getSupabaseClient();
+  if (!sb) return false;
+  const { data, error } = await sb.rpc('tienda_activar_avisos', { p_codigo: codigo, p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth });
+  return !error && data === true;
+}

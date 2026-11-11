@@ -1,5 +1,5 @@
 // DomiRuta Service Worker
-const CACHE_NAME = 'domiruta-v4';
+const CACHE_NAME = 'domiruta-v5';
 
 // Recursos esenciales que se pre-cachean al instalar
 const PRECACHE_ASSETS = [
@@ -158,8 +158,10 @@ self.addEventListener('notificationclick', (event) => {
   }
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((ventanas) => {
+      // solo se reusa una ventana de la MISMA página (la tienda no se abre encima de la app del repartidor)
+      const quiere = pagina(new URL(destino));
       for (const v of ventanas) {
-        if (v.url.startsWith(scope) && 'focus' in v) {
+        if (v.url.startsWith(scope) && pagina(new URL(v.url)) === quiere && 'focus' in v) {
           return v.navigate(destino).then((w) => (w || v).focus()).catch(() => v.focus());
         }
       }

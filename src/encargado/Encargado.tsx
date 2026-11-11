@@ -6,6 +6,8 @@ import { Tablero } from './Tablero.tsx';
 import { Detalle } from './Detalle.tsx';
 import { BotonInstalar } from '../components/BotonInstalar.tsx';
 import { esApp } from '../utils/instalar.ts';
+import { ActivarAvisos } from '../components/ActivarAvisos.tsx';
+import { activarAvisosEncargado } from './datos.ts';
 
 /** Dos notas suaves cuando llega un pedido nuevo (no el pitido de Windows). */
 function sonar() {
@@ -75,11 +77,13 @@ export function Encargado() {
           </button>
         </div>
       </header>
-      {!esApp() && (
-        <div className="max-w-[1500px] w-full mx-auto px-3 min-[1100px]:px-4 pt-3">
-          <div className="max-w-sm"><BotonInstalar nombre="Pedidos en línea" /></div>
+      <div className="max-w-[1500px] w-full mx-auto px-3 min-[1100px]:px-4 pt-3 flex flex-wrap gap-3 empty:hidden">
+        {!esApp() && <div className="w-full max-w-sm"><BotonInstalar nombre="Pedidos en línea" /></div>}
+        <div className="w-full max-w-sm">
+          <ActivarAvisos texto="Avisarme de pedidos nuevos" listo="Avisos activos: te llega una notificación con cada pedido nuevo."
+            guardar={activarAvisosEncargado} />
         </div>
-      )}
+      </div>
       {datos && !datos.caja && (
         <p className="bg-[#FDEBD3] text-[#8A4B00] text-[14px] font-medium px-4 py-2.5 text-center">
           La caja está apagada: puedes atender y empacar, pero la venta, la impresión y la salida del domiciliario se hacen cuando DomiRuta se abra.

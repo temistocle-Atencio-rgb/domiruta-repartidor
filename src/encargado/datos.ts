@@ -82,3 +82,12 @@ export const MEDIO: Record<string, string> = {
   efectivo: 'Efectivo', nequi: 'Nequi', daviplata: 'Daviplata', breb: 'Bre-B', transferencia: 'Transferencia',
   bancolombia: 'Bancolombia', tarjeta_debito: 'Tarjeta débito', tarjeta_credito: 'Tarjeta crédito', nu: 'Nu', dale: 'Dale!', mercado_pago: 'Mercado Pago',
 };
+
+/** El encargado recibe un aviso en el celular cuando llega un pedido nuevo. */
+export async function activarAvisosEncargado(endpoint: string, p256dh: string, auth: string): Promise<boolean> {
+  try {
+    return (await rpc<boolean>('enc_activar_avisos', { p_sesion: sesion(), p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth })) === true;
+  } catch {
+    return false;
+  }
+}

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Check } from 'lucide-react';
 import { CheckCircle2, Copy } from '../iconos/Icono';
 import { EstadoPedido, EstadoPedidoTexto } from './tipos.ts';
-import { pesos, verPedido } from './datos.ts';
+import { activarAvisosPedido, pesos, verPedido } from './datos.ts';
+import { ActivarAvisos } from '../components/ActivarAvisos.tsx';
 
 const PASOS: { e: EstadoPedidoTexto; texto: string; retiro?: string }[] = [
   { e: 'nuevo', texto: 'Recibido' },
@@ -120,6 +121,12 @@ export function PedidoEnviado({ codigo, nombre, total, otroPedido }: Props) {
             )}
             {sinRed && <p className="text-[13px] text-[#8A4B00] mt-1">Sin internet: el estado puede estar atrasado.</p>}
             {!terminado && !sinRed && <p className="text-[12px] text-[#5B6670]">Se actualiza solo. Puedes cerrar esta página y volver luego.</p>}
+            {!terminado && !noExiste && (
+              <div className="mt-3">
+                <ActivarAvisos texto="Avisarme cuando cambie mi pedido" listo="Listo: te avisaremos en este celular aunque cierres la app."
+                  guardar={(e, p, a) => activarAvisosPedido(codigo, e, p, a)} />
+              </div>
+            )}
           </section>
         )}
 
