@@ -101,7 +101,9 @@ export default function App() {
     let codigoSalida = paramS;
     if (paramS) {
       safeSetStorage('domiruta_ultima_salida', paramS);
-    } else if (!esP && !enlaceRepartidor) {
+    } else if (!esP && !enlaceRepartidor && !leerSesion()) {
+      // sin cuenta (enlaces viejos): vuelve a la última salida. Con cuenta abre «Mis salidas», que
+      // muestra la salida nueva o la que va en curso (así no se queda pegado en una ya terminada)
       const ultima = safeGetStorage('domiruta_ultima_salida');
       if (ultima) {
         codigoSalida = ultima;
@@ -1393,7 +1395,7 @@ export default function App() {
           onRechazar={handleRechazarSalida}
           onAbrirMensajes={handleAbrirMensajes}
           mensajesNuevos={mensajesNuevosNoLeidos}
-          onVolverAMisSalidas={obtenerEnlaceGuardado() ? handleVolverAMisSalidas : undefined}
+          onVolverAMisSalidas={obtenerEnlaceGuardado() || haySesion ? handleVolverAMisSalidas : undefined}
         />
 
         <HojaMensajes
@@ -1451,6 +1453,19 @@ export default function App() {
                 )}
               </div>
             )}
+            {(haySesion || obtenerEnlaceGuardado()) && (
+              <button
+                type="button"
+                onClick={() => {
+                  // esta ya no se vuelve a abrir sola
+                  if (safeGetStorage('domiruta_ultima_salida') === codigo) safeSetStorage('domiruta_ultima_salida', '');
+                  handleVolverAMisSalidas();
+                }}
+                className="w-full min-h-[48px] bg-[#005198] hover:bg-[#003A73] text-white rounded-[5px] font-poppins font-semibold text-[15px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#005198] focus:ring-offset-2"
+              >
+                Ir a mis salidas
+              </button>
+            )}
           </div>
         </div>
       );
@@ -1480,7 +1495,7 @@ export default function App() {
         onAbrirMensajes={handleAbrirMensajes}
         ubicacionActiva={ubicacionActiva && !todasTerminadas}
         onAlternarUbicacion={handleAlternarUbicacion}
-        onVolverAMisSalidas={obtenerEnlaceGuardado() ? handleVolverAMisSalidas : undefined}
+        onVolverAMisSalidas={obtenerEnlaceGuardado() || haySesion ? handleVolverAMisSalidas : undefined}
       />
 
       {/* Barra roja fija arriba del mapa si se pierde GPS o internet */}
@@ -1600,6 +1615,15 @@ export default function App() {
               <p className="font-inter text-[14px] text-[#5B6670] mt-2 mb-0">
                 Todas las paradas han sido atendidas.
               </p>
+              {colaMarcas.length === 0 && (
+                <button
+                  type="button"
+                  onClick={handleVolverAMisSalidas}
+                  className="mt-4 w-full min-h-[48px] bg-[#005198] hover:bg-[#003A73] text-white rounded-[5px] font-poppins font-semibold text-[15px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#005198] focus:ring-offset-2"
+                >
+                  Ir a mis salidas
+                </button>
+              )}
             </div>
 
             {/* Sección Hechas con detalle de lo realizado */}
